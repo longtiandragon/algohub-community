@@ -23,7 +23,7 @@ public interface CampusRankingMapper {
             left join user_privacy privacy on privacy.user_id=a.user_id
             left join lateral (
                 select ts.solved_total from total_snapshot ts
-                where ts.account_id = a.id and a.platform = 'MATIJI'
+                where ts.account_id = a.id
                 order by ts.captured_at desc, ts.id desc limit 1
             ) t on true
             where #{scope} = 'SCHOOL' and e.school_id = #{schoolId}
@@ -32,8 +32,7 @@ public interface CampusRankingMapper {
               and (#{className,jdbcType=VARCHAR} is null or e.class_name = #{className,jdbcType=VARCHAR})
               and (#{platform,jdbcType=VARCHAR} is null or a.platform = #{platform,jdbcType=VARCHAR})
               and ((#{type} = 'TOTAL' and
-                    ((a.last_success_at is not null and (a.history_complete or
-                      (a.platform = 'MATIJI' and coalesce(t.solved_total, 0) > 0))) or
+                    ((a.last_success_at is not null and a.history_complete) or t.solved_total is not null or
                      exists (select 1 from user_solved_problem s where s.account_id = a.id))) or
                    (#{type} != 'TOTAL' and (exists (select 1 from user_solved_problem bs where bs.account_id=a.id
                      and bs.platform in ('LUOGU','QOJ','LEETCODE_CN') and bs.first_ac_confidence='USER_REPORTED' and bs.earliest_known_ac_at is not null) or (a.last_success_at is not null and
@@ -50,7 +49,7 @@ public interface CampusRankingMapper {
             left join user_privacy p on p.user_id = u.id
             left join lateral (
                 select ts.solved_total from total_snapshot ts
-                where ts.account_id = a.id and a.platform = 'MATIJI'
+                where ts.account_id = a.id
                 order by ts.captured_at desc, ts.id desc limit 1
             ) t on true
             left join lateral (
@@ -66,8 +65,7 @@ public interface CampusRankingMapper {
               and coalesce(p.profile_visibility, 'SCHOOL') <> 'PRIVATE'
               and (#{platform,jdbcType=VARCHAR} is null or a.platform = #{platform,jdbcType=VARCHAR})
               and ((#{type} = 'TOTAL' and
-                    ((a.last_success_at is not null and (a.history_complete or
-                      (a.platform = 'MATIJI' and coalesce(t.solved_total, 0) > 0))) or
+                    ((a.last_success_at is not null and a.history_complete) or t.solved_total is not null or
                      exists (select 1 from user_solved_problem s where s.account_id = a.id))) or
                    (#{type} != 'TOTAL' and (exists (select 1 from user_solved_problem bs where bs.account_id=a.id
                      and bs.platform in ('LUOGU','QOJ','LEETCODE_CN') and bs.first_ac_confidence='USER_REPORTED' and bs.earliest_known_ac_at is not null) or (a.last_success_at is not null and
@@ -79,23 +77,31 @@ public interface CampusRankingMapper {
         """;
 
     @Select(ELIGIBLE + AccountMetricSql.DAILY + """
-        , matiji_totals as (
-            select e.user_id, sum(e.snapshot_solved)::bigint as solved
+        , account_totals as (
+            select e.id, e.user_id, e.platform, e.snapshot_solved,
+                   (select count(distinct s.problem_id) from user_solved_problem s where s.account_id=e.id) as details
             from eligible e
-            where e.platform = 'MATIJI' and e.snapshot_solved > 0
-              and not exists (select 1 from user_solved_problem s where s.account_id = e.id)
-            group by e.user_id
+        ), platform_totals as (
+            select t.user_id, t.platform,
+                   case when t.platform='LUOGU' then greatest(
+                       (select count(distinct s.problem_id) from user_solved_problem s
+                        join eligible x on x.id=s.account_id where x.user_id=t.user_id and x.platform='LUOGU'),
+                       coalesce(max(t.snapshot_solved),0))
+                   else sum(greatest(t.details,coalesce(t.snapshot_solved,0)))::bigint end as solved
+            from account_totals t group by t.user_id,t.platform
+        ), cumulative_totals as (
+            select user_id,sum(solved)::bigint as solved from platform_totals group by user_id
         ), scores as (
             select e.user_id as "userId", e.display_name as "displayName", e.user_avatar_url as "avatarUrl",
                    e.enrollment_year as "enrollmentYear", e.class_name as "className",
                    e.school_name as "schoolName",
                    bool_or(e.ownership_status != 'VERIFIED') as "hasUnverifiedSource",
                    max(e.last_success_at) as "lastSuccessAt",
-                   coalesce(mt.solved, 0) as "snapshotOnlySolved",
-                   case when #{type} = 'TOTAL' then
+                   greatest(coalesce(mt.solved,0) -
                        (select count(distinct s.problem_id) from user_solved_problem s
-                        join eligible x on x.id = s.account_id where x.user_id = e.user_id)
-                       + coalesce(mt.solved, 0)
+                        join eligible x on x.id=s.account_id where x.user_id=e.user_id),0) as "snapshotOnlySolved",
+                   case when #{type} = 'TOTAL' then
+                       coalesce(mt.solved, 0)
                    else (select coalesce(sum(d.value), 0)::bigint from metric_daily d
                          where d.user_id = e.user_id and d.metric = #{metric}
                          and d.stat_date between #{from} and #{to}) end as score,
@@ -105,7 +111,7 @@ public interface CampusRankingMapper {
                     where x.user_id = e.user_id
                       and (#{type} = 'TOTAL' or x.platform <> 'LUOGU' or s.earliest_known_ac_at is not null)) as "uniqueSolved"
             from eligible e
-            left join matiji_totals mt on mt.user_id = e.user_id
+            left join cumulative_totals mt on mt.user_id = e.user_id
             group by e.user_id, e.display_name, e.user_avatar_url, e.enrollment_year, e.class_name, e.school_name, mt.solved
         ), ranked as (
             select *, rank() over (order by score desc) as rank,

@@ -19,6 +19,7 @@ class MultiAccountStatisticsTest {
     @Autowired DailyStatMapper daily;
     @Autowired org.apache.ibatis.session.SqlSession sqlSession;
     @Autowired CampusRankingService ranking;
+    @Autowired StatisticsService statistics;
 
     @Test void repeatedAcDoesNotCreateAnotherFirstAcOrFeedEvent() {
         Long user=jdbc.queryForObject("insert into app_user(username,password_hash,display_name,role,status) values ('stats-daily','x','每日去重测试','STUDENT','ACTIVE') returning id",Long.class);
@@ -66,7 +67,7 @@ class MultiAccountStatisticsTest {
                 .isEqualTo("EARLIEST_KNOWN");
     }
 
-    @Test void overlappingAccountsCountOnceInProfileButSeparatelyOnAccountCards() {
+    @Test void overlappingAccountsKeepUniqueDetailsSeparateFromCumulativeAccountTotals() {
         Long user=jdbc.queryForObject("insert into app_user(username,password_hash,display_name,role,status) values ('stats-overlap','x','重复题测试','STUDENT','ACTIVE') returning id",Long.class);
         Long first=account(user,"stats-first");
         Long second=account(user,"stats-second");
@@ -89,7 +90,12 @@ class MultiAccountStatisticsTest {
         @SuppressWarnings("unchecked")
         var rows=(java.util.List<Map<String,Object>>) ranking.ranking(user,"TOTAL","FIRST_AC","CODEFORCES",null,null,200).get("rows");
         var rank=rows.stream().filter(row -> number(row,"userId")==user).findFirst().orElseThrow();
-        assertThat(number(rank,"solved")).isEqualTo(2);
+        // Cumulative totals follow the profile's per-account totalPassed rule;
+        // the separately reported unique/detail metrics still deduplicate.
+        assertThat(number(rank,"solved")).isEqualTo(3);
+        assertThat(rank.get("solved")).isEqualTo(statistics.profile(user).get("totalPassed"));
+        assertThat(number(rank,"uniqueSolved")).isEqualTo(2);
+        assertThat(statistics.profile(user).get("totalSolvedAcrossPlatforms")).isEqualTo(2L);
         assertThat(activity.ownCoverage(user)).extracting(row -> number(row,"solvedCount"))
                 .containsExactlyInAnyOrder(1L,2L);
     }

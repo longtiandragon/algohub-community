@@ -38,7 +38,7 @@ public interface StatisticsMapper {
               ) d on true
               left join lateral (
                 select ts.solved_total from total_snapshot ts where ts.account_id = a.id
-                 order by ts.captured_at desc limit 1
+                 order by ts.captured_at desc, ts.id desc limit 1
               ) t on true
              where a.user_id = #{userId} and a.platform <> 'LANQIAO' and a.ownership_status = 'VERIFIED'
              order by a.platform, a.id
@@ -78,7 +78,7 @@ public interface StatisticsMapper {
               left join lateral (
                     select * from total_snapshot ts
                      where ts.account_id = a.id
-                     order by ts.captured_at desc limit 1
+                     order by ts.captured_at desc, ts.id desc limit 1
                    ) t on true
              where a.user_id = #{userId} and a.platform <> 'LANQIAO'
                and (#{verifiedOnly}=false or a.ownership_status='VERIFIED')

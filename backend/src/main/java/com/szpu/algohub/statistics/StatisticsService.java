@@ -46,12 +46,17 @@ public class StatisticsService {
         for (Map<String, Object> account : accountTotals) {
             platformTotals.merge(String.valueOf(account.get("platform")), toLong(account.get("solved")), Long::sum);
         }
-        // Luogu browser/public records share problem IDs: duplicate problems across accounts count once.
-        long luoguDetails = platformSolved.stream().filter(row -> "LUOGU".equals(row.get("platform")))
-                .mapToLong(row -> toLong(row.get("solved"))).sum();
-        long luoguSnapshot = accountTotals.stream().filter(row -> "LUOGU".equals(row.get("platform")))
-                .mapToLong(row -> toLong(row.get("snapshotSolved"))).max().orElse(0);
-        if (platformTotals.containsKey("LUOGU")) platformTotals.put("LUOGU", Math.max(luoguDetails, luoguSnapshot));
+        // Luogu browser/public records share problem IDs: deduplicate verified accounts.
+        // The owner's detail view may also include unverified accounts; those must
+        // not inflate totalPassed, whose accountTotals scope is verified-only.
+        if (platformTotals.containsKey("LUOGU")) {
+            var verifiedDetails = verifiedOnly ? platformSolved : statisticsMapper.platformSolved(userId, true);
+            long luoguDetails = verifiedDetails.stream().filter(row -> "LUOGU".equals(row.get("platform")))
+                    .mapToLong(row -> toLong(row.get("solved"))).sum();
+            long luoguSnapshot = accountTotals.stream().filter(row -> "LUOGU".equals(row.get("platform")))
+                    .mapToLong(row -> toLong(row.get("snapshotSolved"))).max().orElse(0);
+            platformTotals.put("LUOGU", Math.max(luoguDetails, luoguSnapshot));
+        }
         result.put("totalPassed", platformTotals.values().stream().mapToLong(Long::longValue).sum());
         result.put("platformTotals", platformTotals.entrySet().stream()
                 .map(entry -> Map.<String, Object>of("platform", entry.getKey(), "solved", entry.getValue()))

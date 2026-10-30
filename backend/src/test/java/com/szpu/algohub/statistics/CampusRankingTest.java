@@ -29,6 +29,78 @@ class CampusRankingTest {
     Long school;
     Long me;
 
+    @Autowired StatisticsService statistics;
+    @Autowired com.szpu.algohub.activity.ActivityMapper activity;
+
+    @Test void unverifiedLuoguDetailsCannotInflateVerifiedCumulativeTotals() {
+        Long verified = jdbc.queryForObject("insert into platform_account(user_id,platform,handle,ownership_status) values (?,'LUOGU','ranking-verified-luogu','VERIFIED') returning id", Long.class, me);
+        Long unverified = jdbc.queryForObject("insert into platform_account(user_id,platform,handle,ownership_status) values (?,'LUOGU','ranking-unverified-luogu','UNVERIFIED') returning id", Long.class, me);
+        Long first = jdbc.queryForObject("insert into problem(platform,problem_key) values ('LUOGU','ranking-verified-problem') returning id", Long.class);
+        Long second = jdbc.queryForObject("insert into problem(platform,problem_key) values ('LUOGU','ranking-unverified-problem') returning id", Long.class);
+        jdbc.update("insert into user_solved_problem(user_id,account_id,problem_id,platform) values (?,?,?,'LUOGU'),(?,?,?,'LUOGU'),(?,?,?,'LUOGU')", me, verified, first, me, unverified, first, me, unverified, second);
+        long previous = 45L; // Existing verified Codeforces details from setup.
+        var profile = statistics.profile(me);
+        assertThat(profile.get("totalPassed")).isEqualTo(previous + 1);
+        assertThat(profile.get("totalSolvedAcrossPlatforms")).isEqualTo(previous + 2);
+        for (String scope : new String[]{"SCHOOL", "GLOBAL"}) {
+            assertThat(((Map<?, ?>) service.ranking(me, scope, "TOTAL", "FIRST_AC", null, null, null, 200).get("myRank")).get("score"))
+                    .isEqualTo(profile.get("totalPassed"));
+        }
+        assertThat(statistics.profileForOthers(me, true).get("totalSolvedAcrossPlatforms")).isEqualTo(previous + 1);
+    }
+
+    @Test void cumulativeExampleKeeps672TotalSeparateFrom295UntimedDetails() {
+        Long leetcode = jdbc.queryForObject("select id from platform_account where user_id=?", Long.class, me);
+        jdbc.update("delete from user_solved_problem where account_id=?", leetcode);
+        jdbc.update("delete from daily_stat where account_id=?", leetcode);
+        jdbc.update("update platform_account set platform='LEETCODE_CN',supports_history=false,history_complete=false,last_success_at=null where id=?", leetcode);
+        Long luogu = jdbc.queryForObject("insert into platform_account(user_id,platform,handle,ownership_status) values (?,'LUOGU','ranking-example-luogu','VERIFIED') returning id", Long.class, me);
+        Long otherLuogu = jdbc.queryForObject("insert into platform_account(user_id,platform,handle,ownership_status) values (?,'LUOGU','ranking-example-luogu-other','VERIFIED') returning id", Long.class, me);
+        Long nowcoder = jdbc.queryForObject("insert into platform_account(user_id,platform,handle,ownership_status) values (?,'NOWCODER','ranking-example-nowcoder','VERIFIED') returning id", Long.class, me);
+        // now() is stable within this transaction: the later ID must win the tie,
+        // even though its cumulative value is smaller than the earlier snapshot.
+        jdbc.update("insert into total_snapshot(account_id,solved_total,captured_at) values (?,999,now()-interval '1 day'),(?,500,now()),(?,389,now()),(?,250,now()),(?,200,now()),(?,33,now())",
+                leetcode, leetcode, leetcode, luogu, otherLuogu, nowcoder);
+        for (var entry : Map.of("LEETCODE_CN", 45, "LUOGU", 250).entrySet()) {
+            String platform = entry.getKey();
+            Long account = "LUOGU".equals(platform) ? luogu : leetcode;
+            jdbc.update("insert into problem(platform,problem_key) select ?, 'ranking-example-' || n from generate_series(1,?) n", platform, entry.getValue());
+            jdbc.update("insert into user_solved_problem(user_id,account_id,problem_id,platform) select ?,?,id,platform from problem where platform=? and problem_key like 'ranking-example-%'", me, account, platform);
+        }
+        jdbc.update("insert into user_solved_problem(user_id,account_id,problem_id,platform) select ?,?,problem_id,'LUOGU' from user_solved_problem where account_id=?", me, otherLuogu, luogu);
+        jdbc.update("insert into luogu_extra_solve(account_id,problem_key) values (?,'ranking-example-private')", otherLuogu);
+        var profile = statistics.profile(me);
+        assertThat(profile.get("totalPassed")).isEqualTo(672L);
+        assertThat(profile.get("totalSolvedAcrossPlatforms")).isEqualTo(295L);
+        assertThat(statistics.snapshots(me)).filteredOn(row -> "LEETCODE_CN".equals(row.get("platform")))
+                .singleElement().satisfies(row -> assertThat(((Number)row.get("solvedTotal")).longValue()).isEqualTo(389L));
+        for (String scope : new String[]{"SCHOOL", "GLOBAL"}) {
+            var mine = (Map<?, ?>) service.ranking(me, scope, "TOTAL", "FIRST_AC", null, null, null, 200).get("myRank");
+            assertThat(mine.get("score")).isEqualTo(profile.get("totalPassed"));
+            assertThat(mine.get("snapshotOnlySolved")).isEqualTo(377L);
+            assertThat(((Map<?, ?>) service.ranking(me, scope, "TOTAL", "FIRST_AC", "LUOGU", null, null, 200).get("myRank")).get("score")).isEqualTo(250L);
+            assertThat(service.ranking(me, scope, "WEEK", "FIRST_AC", null, null, null, 200).get("myRank")).isNull();
+        }
+        assertThat((Map<?, ?>)statistics.heatmap(me, TimeSupport.today().minusDays(365), TimeSupport.today(), null).get("metrics")).isEmpty();
+        assertThat(activity.schoolFeed(school, null, null, me, null, null, 100)).isEmpty();
+        assertThat(jdbc.queryForObject("select count(*) from submission where account_id in (select id from platform_account where user_id=?)", Long.class, me)).isZero();
+    }
+
+    @Test void cumulativeUsesLatestSnapshotsWithoutInventingDailyHistory() {
+        Long account = jdbc.queryForObject("insert into platform_account(user_id,platform,handle,ownership_status) values (?,'LEETCODE_CN','example','VERIFIED') returning id", Long.class, me);
+        jdbc.update("insert into total_snapshot(account_id,solved_total,captured_at) values (?,999,now()-interval '1 day'),(?,389,now())",account,account);
+        for (String scope : new String[]{"SCHOOL","GLOBAL"}) {
+            var board=service.ranking(me,scope,"TOTAL","FIRST_AC",null,null,null,200);
+            assertThat(((Map<?,?>)board.get("myRank")).get("score")).isEqualTo(statistics.profile(me).get("totalPassed"));
+            var filtered=service.ranking(me,scope,"TOTAL","FIRST_AC","LEETCODE_CN",null,null,200);
+            assertThat(((Map<?,?>)filtered.get("myRank")).get("score")).isEqualTo(389L);
+            assertThat(service.ranking(me,scope,"WEEK","FIRST_AC","LEETCODE_CN",null,null,200).get("myRank")).isNull();
+        }
+        jdbc.update("update platform_account set ownership_status='RESOLVED' where id=?",account);
+        sqlSession.clearCache();
+        assertThat(service.ranking(me,"GLOBAL","TOTAL","FIRST_AC","LEETCODE_CN",null,null,200).get("myRank")).isNull();
+    }
+
     @BeforeEach void setup() {
         school = jdbc.queryForObject("insert into school(name,invite_code) values ('排名测试学校','ranking-test') returning id", Long.class);
         for (int i = 0; i < 60; i++) {
@@ -228,7 +300,7 @@ class CampusRankingTest {
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.myRank.rank").value(56));
     }
 
-    @Test void totalDeduplicatesSamePlatformAccountsAndConfirmedCrossPlatformMappings() {
+    @Test void totalMatchesProfileAccountTotalsAndKeepsMappedUniqueCount() {
         jdbc.update("delete from user_solved_problem where user_id=?",me);
         Long firstAccount = jdbc.queryForObject("select id from platform_account where user_id=?", Long.class, me);
         Long secondAccount = jdbc.queryForObject("insert into platform_account(user_id,platform,handle,ownership_status) values (?,'CODEFORCES','rank-second','VERIFIED') returning id",Long.class,me);
@@ -241,7 +313,8 @@ class CampusRankingTest {
         for (Long problem : java.util.List.of(firstProblem,secondProblem)) jdbc.update("insert into problem_group_member(group_id,problem_id) values (?,?)",group,problem);
         member("rank-total-only",school,"一班",0,"VERIFIED",false);
         var result = service.ranking(me,"TOTAL","FIRST_AC",null,2026,null,50);
-        assertThat(((Map<?,?>)result.get("myRank")).get("solved")).isEqualTo(2L);
+        assertThat(((Map<?,?>)result.get("myRank")).get("solved")).isEqualTo(3L);
+        assertThat(((Map<?,?>)result.get("myRank")).get("solved")).isEqualTo(statistics.profile(me).get("totalPassed"));
         assertThat(((Map<?,?>)result.get("myRank")).get("uniqueSolved")).isEqualTo(1L);
         assertThat(result.get("participantCount")).isEqualTo(60L);
         var filtered = service.ranking(me,"TOTAL","FIRST_AC","ATCODER",2026,null,50);

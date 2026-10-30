@@ -95,7 +95,7 @@ public class CampusRankingService {
                 : "校内榜仅统计本人所在学校已通过的成员；")
                 + "仅计入已验证归属的账号，排除关闭排行展示或档案仅自己可见的用户。"
                 + "区间榜只使用提交记录，不将快照增量当作新增通过；无法提供此指标的账号不以零分参榜。"
-                + "累计榜统计已同步的通过数；逐题明细去重仅合并已确认的跨平台映射，总量快照无法逐题去重。"
+                + "累计榜与档案总通过题数口径一致：各账号取已收录题数与最新平台累计数的较大值，洛谷明细合并去重后与平台累计数取较大值。跨平台同题可能重复；平台累计数不用于时间榜。"
                 + "同分并列，后续名次跳位。");
         return result;
     }
@@ -135,7 +135,7 @@ public class CampusRankingService {
             return new NotRanked("PLATFORM", "你在" + spaced(Platform.parse(platform).getDisplayName()) + "没有验证过归属的账号" + claimHint);
         }
         String sourceScope = "你验证过归属的" + spaced(names(platform == null ? verified : List.of(platform))) + "账号";
-        String why = "TOTAL".equals(type) ? "MATIJI".equals(platform) ? "还没有同步到累计通过总数" : "还没有同步到逐题明细"
+        String why = "TOTAL".equals(type) ? "还没有同步到累计通过总数或逐题明细"
                 : "FIRST_AC".equals(metric) ? "这段时间没有能确定首次通过时间的记录"
                 : "这段时间没有可计入的提交记录";
         return new NotRanked("NO_DATA", sourceScope + why + claimHint);
