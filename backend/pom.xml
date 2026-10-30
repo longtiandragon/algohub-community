@@ -27,7 +27,7 @@
         <log4j2.version>2.25.5</log4j2.version>
         <mybatis.starter.version>3.0.5</mybatis.starter.version>
         <jsoup.version>1.23.2</jsoup.version>
-        <jjwt.version>0.12.6</jjwt.version>
+        <jjwt.version>0.13.0</jjwt.version>
     </properties>
 
     <dependencies>
