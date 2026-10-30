@@ -1,0 +1,40 @@
+name: algohub-production
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    # 单台 4 GB 主机的初始预算；上线前按实际负载验证，可由 env 调整。
+    mem_limit: ${POSTGRES_MEMORY_LIMIT:-768m}
+    environment:
+      POSTGRES_DB: algohub
+      POSTGRES_USER: algohub
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD}
+    ports: ["127.0.0.1:5433:5432"]
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U algohub -d algohub"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    logging: &logging
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    mem_limit: ${REDIS_MEMORY_LIMIT:-256m}
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD}
+    # 会话/限流键不可任意淘汰；达到上限返回错误，容器预算另留 AOF/运行开销。
+    command: ["sh", "-c", 'exec redis-server --appendonly yes --appendfsync everysec --protected-mode yes --maxmemory ${REDIS_MAXMEMORY:-128mb} --maxmemory-policy noeviction --requirepass "$$REDIS_PASSWORD"']
+    ports: ["127.0.0.1:6380:6379"]
+    volumes: ["redisdata:/data"]
+    healthcheck:
+      test: ["CMD-SHELL", 'REDISCLI_AUTH="$$REDIS_PASSWORD" redis-cli ping | grep -q PONG']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    logging: *logging
+volumes:
+  pgdata:
+  redisdata:

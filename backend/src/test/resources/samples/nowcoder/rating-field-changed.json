@@ -1,0 +1,32 @@
+{
+  "msg": "OK",
+  "code": 0,
+  "data": [
+    {
+      "contestId": 110696,
+      "rating": 1011.0,
+      "rank": 592,
+      "changeValue": 11.0,
+      "time": 1748170800000,
+      "contestName": "牛客周赛 Round 94",
+      "colorLevel": 2
+    },
+    {
+      "contestId": 117762,
+      "rating": 989.0,
+      "rank": 754,
+      "changeValue": -22.0,
+      "contestName": "牛客小白月赛121",
+      "colorLevel": 2
+    },
+    {
+      "contestId": 121300,
+      "rating": 1104.0,
+      "rank": 401,
+      "changeValue": 115.0,
+      "time": 1762686000000,
+      "contestName": "牛客周赛 Round 117",
+      "colorLevel": 3
+    }
+  ]
+}

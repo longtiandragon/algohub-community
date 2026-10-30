@@ -1,0 +1,7 @@
+[Unit]
+Description=AlgoHub daily PostgreSQL backup
+After=docker.service
+[Service]
+Type=oneshot
+UMask=0077
+ExecStart=/bin/bash /opt/algohub/deploy/backup.sh

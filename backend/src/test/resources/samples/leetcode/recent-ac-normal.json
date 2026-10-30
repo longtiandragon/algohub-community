@@ -1,0 +1,36 @@
+{
+ "data": {
+  "recentACSubmissions": [
+   {
+    "submissionId": 748926592,
+    "submitTime": 1789319971,
+    "question": {
+     "title": "Decode Ways",
+     "translatedTitle": "解码方法",
+     "titleSlug": "decode-ways",
+     "questionFrontendId": "91"
+    }
+   },
+   {
+    "submissionId": 729123128,
+    "submitTime": 1780561562,
+    "question": {
+     "title": "Generate Parentheses",
+     "translatedTitle": "括号生成",
+     "titleSlug": "generate-parentheses",
+     "questionFrontendId": "22"
+    }
+   },
+   {
+    "submissionId": 729100716,
+    "submitTime": 1780556926,
+    "question": {
+     "title": "Longest Palindromic Substring",
+     "translatedTitle": "最长回文子串",
+     "titleSlug": "longest-palindromic-substring",
+     "questionFrontendId": "5"
+    }
+   }
+  ]
+ }
+}

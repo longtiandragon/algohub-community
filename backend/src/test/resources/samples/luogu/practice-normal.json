@@ -1,0 +1,106 @@
+{
+ "instance": "main",
+ "template": "user.show",
+ "status": 200,
+ "locale": "zh-CN",
+ "data": {
+  "passed": [
+   {
+    "type": "P",
+    "name": "A+B Problem",
+    "difficulty": 1,
+    "pid": "P1001"
+   },
+   {
+    "type": "P",
+    "name": "[NOIP 2002 普及组] 过河卒",
+    "difficulty": 2,
+    "pid": "P1002"
+   },
+   {
+    "type": "P",
+    "name": "[NOIP 2011 提高组] 铺地毯",
+    "difficulty": 2,
+    "pid": "P1003"
+   },
+   {
+    "type": "P",
+    "name": "[NOIP 2000 提高组] 方格取数",
+    "difficulty": 4,
+    "pid": "P1004"
+   },
+   {
+    "type": "P",
+    "name": "独木桥",
+    "difficulty": 3,
+    "pid": "P1007"
+   }
+  ],
+  "submitted": [
+   {
+    "type": "P",
+    "name": "吃奶酪",
+    "difficulty": 4,
+    "pid": "P1433"
+   },
+   {
+    "type": "P",
+    "name": "【模板】高精度乘法 / A*B Problem 升级版",
+    "difficulty": 7,
+    "pid": "P1919"
+   }
+  ],
+  "elo": [
+   {
+    "rating": 512,
+    "time": 1766914200,
+    "latest": true,
+    "contest": {
+     "id": 256235,
+     "startTime": 1766901600,
+     "endTime": 1766914200,
+     "name": "【LGR-256-Div.3】洛谷基础赛 #29 & QFOI Round 3"
+    },
+    "userCount": 2,
+    "prevDiff": 512
+   },
+   {
+    "rating": 0,
+    "time": 1743242400,
+    "latest": false,
+    "contest": {
+     "id": 236568,
+     "startTime": 1743228000,
+     "endTime": 1743242400,
+     "name": "【LGR-219-Div.2】洛谷蓝桥杯模拟赛 & 洛谷算法基础赛 #3"
+    },
+    "userCount": 2,
+    "prevDiff": null
+   }
+  ],
+  "user": {
+   "uid": 100001,
+   "avatar": "https://cdn.luogu.com.cn/upload/usericon/1.png",
+   "name": "sample_user",
+   "slogan": "",
+   "badge": null,
+   "isAdmin": false,
+   "isBanned": false,
+   "color": "Green",
+   "ccfLevel": 0,
+   "xcpcLevel": 0,
+   "background": "",
+   "eloValue": null,
+   "followingCount": 0,
+   "followerCount": 0,
+   "ranking": 1,
+   "passedProblemCount": 5,
+   "submittedProblemCount": 7,
+   "elo": null,
+   "registerTime": 1700000000,
+   "introduction": ""
+  }
+ },
+ "user": null,
+ "time": 1790000000
+}

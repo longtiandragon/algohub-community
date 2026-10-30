@@ -1,0 +1,51 @@
+# 同机 Nginx + systemd 后端；数据库/Redis 只映射回环端口。
+server:
+  address: 127.0.0.1
+  forward-headers-strategy: native
+  tomcat:
+    remoteip:
+      internal-proxies: '127\.0\.0\.1|0:0:0:0:0:0:0:1|::1'
+      remote-ip-header: x-forwarded-for
+      protocol-header: x-forwarded-proto
+spring:
+  datasource:
+    url: jdbc:postgresql://127.0.0.1:5433/algohub
+    username: ${DB_APP_USERNAME:algohub}
+    password: ${DB_APP_PASSWORD:${DB_PASSWORD}}
+  flyway:
+    # 迁移单独使用表所有者；日常连接可切换为无 DDL/超级用户权限的角色。
+    url: jdbc:postgresql://127.0.0.1:5433/algohub
+    user: algohub
+    password: ${DB_PASSWORD}
+    clean-disabled: true
+    baseline-on-migrate: false
+  data:
+    redis:
+      password: ${REDIS_PASSWORD}
+algohub:
+  reminders:
+    enabled: ${REMINDERS_ENABLED:true}
+  bootstrap:
+    admin-username: ${ADMIN_USERNAME:admin}
+    admin-password: ${ADMIN_PASSWORD:}
+    admin-display-name: 管理员
+  security:
+    production: true
+    secure-cookie: true
+    require-existing-keys: true
+    jwt-secret-file: /etc/algohub/secrets/jwt-key.txt
+  credential:
+    key-file: /etc/algohub/secrets/credential-key.txt
+  oauth:
+    github:
+      client-id: ${GITHUB_CLIENT_ID:}
+      client-secret: ${GITHUB_CLIENT_SECRET:}
+      redirect-uri: ${PUBLIC_ORIGIN}/oauth/github/callback
+  # 请求外站的用户入口限频（10 分钟窗口）：按用户 / 按来源 IP
+  outbound-guard:
+    per-user: ${OUTBOUND_PER_USER:30}
+    per-ip: ${OUTBOUND_PER_IP:300}
+    window-minutes: 10
+  accounts:
+    # 每个用户每个平台最多几个账号（正式绑定、待认领、个人关注都算）
+    max-per-platform: ${MAX_ACCOUNTS_PER_PLATFORM:3}

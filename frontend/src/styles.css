@@ -1,0 +1,730 @@
+/* ==========================================================================
+   设计基础：颜色、间距、圆角、阴影统一用变量定义，深浅色主题只切换变量。
+   ========================================================================== */
+
+:root {
+  /* 品牌：500 用于链接、选中和强调，600 是品牌色的文字，btn 是填充按钮的底色（深色下单独一档，白字才看得清） */
+  --brand-400: #6366f1;
+  --brand-500: #4f46e5;
+  --brand-600: #4338ca;
+  --brand-soft: #eef2ff;
+  --brand-btn: #4f46e5;
+  --brand-btn-hover: #6366f1;
+  --brand-btn-active: #4338ca;
+
+  /* 状态色：主色给图标、圆点和进度条，soft 是浅底，ink 是浅底上的文字（对比度不低于 4.5:1）。
+     绿 = 通过，琥珀 = 需要处理，红 = 失败，蓝 = 信息；颜色之外总配文字或图标 */
+  --success: #16a34a;
+  --success-soft: #dcfce7;
+  --success-ink: #15803d;
+  --warning: #d97706;
+  --warning-soft: #fffbeb;
+  --warning-ink: #b45309;
+  --danger: #dc2626;
+  --danger-soft: #fef2f2;
+  --danger-ink: #b91c1c;
+  --info: #0284c7;
+  --info-soft: #e0f2fe;
+  --info-ink: #0369a1;
+  /* 小标签（「待认领」这类）的底色比大面积提示条深一档 */
+  --warning-tint: #fef3c7;
+  --danger-tint: #fee2e2;
+  /* 琥珀提示条的边框 */
+  --warning-line: #fde68a;
+
+  /* 名次（深浅色相同）与热力图五档 */
+  --medal-gold: #e5a50a;
+  --medal-silver: #98a2b3;
+  --medal-bronze: #c27c44;
+  --heat-0: #ebedf2;
+  --heat-1: #bbf7d0;
+  --heat-2: #86efac;
+  --heat-3: #22c55e;
+  --heat-4: #15803d;
+
+  --bg: #f5f6fa;
+  --bg-elevated: #ffffff;
+  --bg-subtle: #f0f2f7;
+  --surface-hover: rgba(79, 70, 229, 0.06);
+
+  --text-strong: #121629;
+  --text: #2e3450;
+  /* 规划是 #697089（白底 4.7），但在表头这类次级面上只有 4.38，压深一点，两处都过 4.5 */
+  --text-muted: #646b84;
+  /* 只给图标和禁用态用，要读的文字不用它 */
+  --text-faint: #9aa0b4;
+  --border: #e3e6ee;
+  --border-strong: #cfd4e0;
+  /* 卡片里列表行之间的分隔线，比 --border 浅一档 */
+  --border-soft: #eef0f5;
+  /* 加载占位的灰块 */
+  --skeleton: #eef0f5;
+
+  /* 圆角：标签 6，按钮、输入框和小容器 10，卡片 14，弹层 20 */
+  --radius-xs: 6px;
+  --radius-sm: 10px;
+  --radius: 14px;
+  --radius-lg: 20px;
+
+  /* 卡片靠 1px 边框分层，默认不加阴影；弹层、下拉和悬停才用 */
+  --shadow-sm: 0 1px 2px rgba(18, 22, 41, 0.05);
+  --shadow: 0 6px 20px rgba(18, 22, 41, 0.08);
+  --shadow-lg: 0 18px 48px rgba(18, 22, 41, 0.14);
+
+  /* 字体（页面设计规划第二节）：界面用系统中文字体；数字（排名、题数、时间）用 Outfit 配等宽数字；
+     题号、账号、验证串用 JetBrains Mono。两款西文字体只有拉丁子集，中文落到后面的系统字体 */
+  --font-sans: 'PingFang SC', 'HarmonyOS Sans SC', 'MiSans', 'Microsoft YaHei', system-ui, sans-serif;
+  --font-num: 'Outfit', var(--font-sans);
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, var(--font-sans);
+
+  /* 字号（页面设计规划第二节）：最小 12 */
+  --fs-caption: 12px;
+  --fs-body: 14px;
+  --fs-card-title: 15px;
+  --fs-section: 18px;
+  /* 页面标题：画布里电脑 26、手机 22 */
+  --fs-page-title: 26px;
+  --fs-num: 28px;
+
+
+  color-scheme: light;
+}
+
+html[data-theme='dark'] {
+  --brand-400: #a5b4fc;
+  --brand-500: #818cf8;
+  --brand-600: #a5b4fc;
+  --brand-soft: #242850;
+  /* 画布是 #6366f1，白字对比度 4.47 差一点，压深到 #5b5fef（4.85），看上去没有区别 */
+  --brand-btn: #5b5fef;
+  --brand-btn-hover: #5558e6;
+  --brand-btn-active: #4f46e5;
+
+  --success: #22c55e;
+  --success-soft: rgba(34, 197, 94, 0.14);
+  --success-ink: #4ade80;
+  --warning: #f59e0b;
+  --warning-soft: rgba(245, 158, 11, 0.12);
+  --warning-ink: #fbbf24;
+  --danger: #f87171;
+  --danger-soft: rgba(248, 113, 113, 0.12);
+  --danger-ink: #fca5a5;
+  --info: #38bdf8;
+  --info-soft: rgba(56, 189, 248, 0.14);
+  --info-ink: #7dd3fc;
+  --warning-tint: rgba(245, 158, 11, 0.18);
+  --danger-tint: rgba(248, 113, 113, 0.18);
+  --warning-line: rgba(245, 158, 11, 0.32);
+
+  --heat-0: #1c2130;
+  --heat-1: #14532d;
+  --heat-2: #166534;
+  --heat-3: #16a34a;
+  --heat-4: #4ade80;
+
+  --bg: #0d1017;
+  --bg-elevated: #151923;
+  --bg-subtle: #1c2130;
+  --surface-hover: rgba(129, 140, 248, 0.12);
+
+  --text-strong: #f1f3f9;
+  --text: #cdd2e1;
+  --text-muted: #8c93a8;
+  --text-faint: #5b6275;
+  --border: #262c3b;
+  --border-strong: #343b4e;
+  --border-soft: #1f2431;
+  --skeleton: #222838;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 18px 48px rgba(0, 0, 0, 0.55);
+
+  color-scheme: dark;
+}
+
+/* Element Plus 主题对齐：组件库的颜色都指向上面的变量，深浅色跟着切换。
+   深一档、浅一档按组件库自己的算法（和卡片底色混合）生成；light-9 用我们的浅底色。 */
+:root {
+  --el-color-primary: var(--brand-500);
+  --el-color-primary-light-3: var(--brand-400);
+  --el-color-primary-light-5: var(--brand-400);
+  --el-color-primary-light-7: var(--brand-soft);
+  --el-color-primary-light-8: var(--brand-soft);
+  --el-color-primary-light-9: var(--brand-soft);
+  --el-color-primary-dark-2: var(--brand-btn-active);
+
+  --el-color-success: var(--success);
+  --el-color-success-light-3: color-mix(in srgb, var(--success) 70%, var(--bg-elevated));
+  --el-color-success-light-5: color-mix(in srgb, var(--success) 50%, var(--bg-elevated));
+  --el-color-success-light-7: color-mix(in srgb, var(--success) 30%, var(--bg-elevated));
+  --el-color-success-light-8: color-mix(in srgb, var(--success) 20%, var(--bg-elevated));
+  --el-color-success-light-9: var(--success-soft);
+  --el-color-success-dark-2: color-mix(in srgb, var(--success) 80%, #000);
+  --el-color-warning: var(--warning);
+  --el-color-warning-light-3: color-mix(in srgb, var(--warning) 70%, var(--bg-elevated));
+  --el-color-warning-light-5: color-mix(in srgb, var(--warning) 50%, var(--bg-elevated));
+  --el-color-warning-light-7: color-mix(in srgb, var(--warning) 30%, var(--bg-elevated));
+  --el-color-warning-light-8: color-mix(in srgb, var(--warning) 20%, var(--bg-elevated));
+  --el-color-warning-light-9: var(--warning-soft);
+  --el-color-warning-dark-2: color-mix(in srgb, var(--warning) 80%, #000);
+  --el-color-danger: var(--danger);
+  --el-color-danger-light-3: color-mix(in srgb, var(--danger) 70%, var(--bg-elevated));
+  --el-color-danger-light-5: color-mix(in srgb, var(--danger) 50%, var(--bg-elevated));
+  --el-color-danger-light-7: color-mix(in srgb, var(--danger) 30%, var(--bg-elevated));
+  --el-color-danger-light-8: color-mix(in srgb, var(--danger) 20%, var(--bg-elevated));
+  --el-color-danger-light-9: var(--danger-soft);
+  --el-color-danger-dark-2: color-mix(in srgb, var(--danger) 80%, #000);
+  --el-color-error: var(--danger);
+  --el-color-error-light-9: var(--danger-soft);
+  /* 组件库的 info 是中性灰（「未知」「无数据」这类标签），不是我们的信息蓝 */
+  --el-color-info: var(--text-muted);
+  --el-color-info-light-3: color-mix(in srgb, var(--text-muted) 70%, var(--bg-elevated));
+  --el-color-info-light-5: color-mix(in srgb, var(--text-muted) 50%, var(--bg-elevated));
+  --el-color-info-light-7: var(--border-strong);
+  --el-color-info-light-8: var(--border);
+  --el-color-info-light-9: var(--bg-subtle);
+  --el-color-info-dark-2: var(--text);
+
+  --el-bg-color: var(--bg-elevated);
+  --el-bg-color-overlay: var(--bg-elevated);
+  --el-bg-color-page: var(--bg);
+  --el-text-color-primary: var(--text-strong);
+  --el-text-color-regular: var(--text);
+  --el-text-color-secondary: var(--text-muted);
+  /* 筛选框没选时显示的「全部平台」这类占位也是要读的字，不用组件库的浅灰 */
+  --el-text-color-placeholder: var(--text-muted);
+  --el-text-color-disabled: var(--text-faint);
+  --el-border-color: var(--border-strong);
+  --el-border-color-light: var(--border);
+  --el-border-color-lighter: var(--border);
+  --el-border-color-extra-light: var(--bg-subtle);
+  --el-border-color-dark: var(--border-strong);
+  --el-border-color-darker: var(--border-strong);
+  --el-fill-color: var(--bg-subtle);
+  --el-fill-color-light: var(--bg-subtle);
+  --el-fill-color-lighter: var(--bg-subtle);
+  --el-fill-color-extra-light: var(--bg);
+  --el-fill-color-blank: var(--bg-elevated);
+  --el-border-radius-base: 10px;
+  --el-border-radius-small: var(--radius-xs);
+  --el-font-size-base: 14px;
+}
+
+html[data-theme='dark'] {
+  --el-mask-color: rgba(10, 12, 18, 0.75);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+a {
+  color: var(--brand-500);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--brand-600);
+  text-decoration: underline;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+/* ============================ 布局 ============================ */
+
+.app-shell {
+  display: flex;
+  min-height: 100vh;
+  /* 横放的 iPhone 让开刘海（index.html 设了 viewport-fit=cover，内容会伸到两侧） */
+  padding-right: env(safe-area-inset-right);
+  padding-left: env(safe-area-inset-left);
+}
+
+
+.app-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 手机：左右留 16；底部让出底栏（6 + 52 + 6）和 iPhone 底部横条 */
+.app-content {
+  flex: 1;
+  width: 100%;
+  margin: 0 auto;
+  padding: 16px 16px calc(80px + env(safe-area-inset-bottom));
+}
+
+/* 平板：图标栏右边，左右留 24 */
+@media (min-width: 768px) {
+  .app-content {
+    padding: 28px 24px 40px;
+  }
+}
+
+/* 电脑：侧栏右边，左右留 32；≥ 1280 留 40，内容最宽 1200 居中 */
+@media (min-width: 1024px) {
+  .app-content {
+    padding: 36px 32px 48px;
+  }
+}
+
+@media (min-width: 1280px) {
+  .app-content {
+    max-width: 1280px;
+    padding: 36px 40px 48px;
+  }
+}
+
+/* ============================ 通用元素 ============================ */
+
+.card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+  margin-bottom: 16px;
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: -2px 0 14px;
+}
+
+.card-title {
+  font-weight: 620;
+  color: var(--text-strong);
+  font-size: 15px;
+}
+
+.muted {
+  color: var(--text-muted);
+  font-size: 12.5px;
+  line-height: 1.7;
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.stat-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+}
+
+.stat-label {
+  color: var(--text-muted);
+  font-size: 12.5px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.stat-value {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--text-strong);
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  margin-top: 2px;
+}
+
+.stat-foot {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.chart {
+  width: 100%;
+  height: 260px;
+}
+
+.chart-tall {
+  width: 100%;
+  height: 320px;
+}
+
+.badge-soft {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+
+/* 登录、验证邮箱、找回密码这类整页的表单（第 12 步起）：输入框和按钮比组件库的高，
+   手机上 16px 字，免得 iPhone 聚焦时放大页面 */
+.auth-input {
+  width: 100%;
+  height: 48px;
+  padding: 0 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background: var(--bg-elevated);
+  color: var(--text-strong);
+  font: inherit;
+  font-size: 16px;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.auth-input::placeholder {
+  color: var(--text-faint);
+}
+
+/* 聚焦时边框看起来是 2px，用阴影补上那 1px，内容不跳 */
+.auth-input:focus {
+  border-color: var(--brand-400);
+  box-shadow: 0 0 0 1px var(--brand-400);
+}
+
+.auth-input:disabled {
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+/* 下拉框：去掉系统样式，右边画一个向下的箭头（辅助文字色，深浅色都看得清） */
+.auth-select {
+  padding-right: 40px;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238c93a8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-position: right 14px center;
+  background-repeat: no-repeat;
+  background-size: 16px;
+  cursor: pointer;
+}
+
+.auth-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  height: 50px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.auth-button.is-primary {
+  background: var(--brand-btn);
+  color: #fff;
+}
+
+.auth-button.is-primary:hover:not(:disabled) {
+  background: var(--brand-btn-hover);
+}
+
+.auth-button.is-primary:active:not(:disabled) {
+  background: var(--brand-btn-active);
+}
+
+.auth-button.is-outline {
+  height: 48px;
+  border-color: var(--border-strong);
+  background: var(--bg-elevated);
+  color: var(--text-strong);
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.auth-button.is-outline:hover:not(:disabled) {
+  background: var(--bg-subtle);
+}
+
+.auth-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.auth-button:focus-visible {
+  outline: 2px solid var(--brand-500);
+  outline-offset: 2px;
+}
+
+/* 文字链接样式的按钮（也用在 RouterLink 上） */
+.auth-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--brand-600);
+  font: inherit;
+  cursor: pointer;
+}
+
+.auth-link:hover {
+  color: var(--brand-600);
+  text-decoration: underline;
+}
+
+@media (min-width: 1024px) {
+  .auth-input {
+    height: 46px;
+    border-radius: 10px;
+    font-size: 15px;
+  }
+
+  .auth-button {
+    height: 48px;
+  }
+
+  .auth-button.is-outline {
+    height: 46px;
+  }
+}
+
+/* 手机顶栏右侧的按钮（页面用 PageHeader 的 mobile-actions 或 TopBarActions 送过去）：
+   topbar-icon 是只有图标的按钮（如同步），topbar-add 是圆形的主操作（如添加账号） */
+.topbar-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--brand-500);
+  cursor: pointer;
+}
+
+.topbar-icon:disabled {
+  color: var(--text-faint);
+  cursor: default;
+}
+
+.topbar-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  margin: 0 2px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--brand-btn);
+  color: #fff;
+  cursor: pointer;
+}
+
+.topbar-icon:focus-visible,
+.topbar-add:focus-visible {
+  outline: 2px solid var(--brand-500);
+  outline-offset: 2px;
+}
+
+/* 筛选片（FilterBar 和页面自己加的筛选，如做题记录的日期）：和默认值不同时用 is-active 的靛蓝浅底 */
+.filter-chip {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+  height: 34px;
+  padding: 0 10px 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-elevated);
+  color: var(--text);
+  font: inherit;
+  font-size: 13.5px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.filter-chip:hover {
+  border-color: var(--border-strong);
+}
+
+.filter-chip.is-active {
+  border-color: color-mix(in srgb, var(--brand-500) 35%, var(--border));
+  background: var(--brand-soft);
+  color: var(--brand-600);
+  font-weight: 600;
+}
+
+.filter-chip:focus-visible {
+  outline: 2px solid var(--brand-500);
+  outline-offset: 1px;
+}
+
+@media (max-width: 767px) {
+  .filter-chip {
+    height: 36px;
+  }
+}
+
+/* 登录类整页的方格纸底（引导、找回密码、GitHub 回调） */
+.auth-grid-bg {
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--border) 60%, var(--bg)) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--border) 60%, var(--bg)) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+
+/* 表格与图表容器细节 */
+.table-scroll {
+  overflow-x: auto;
+}
+
+.el-card {
+  border-radius: var(--radius) !important;
+  border-color: var(--border) !important;
+  background: var(--bg-elevated) !important;
+}
+
+.el-table {
+  --el-table-border-color: var(--border);
+  --el-table-header-bg-color: var(--bg-subtle);
+  --el-table-header-text-color: var(--text-muted);
+  --el-table-bg-color: var(--bg-elevated);
+  --el-table-tr-bg-color: var(--bg-elevated);
+  --el-table-row-hover-bg-color: var(--surface-hover);
+  font-size: 13px;
+}
+
+.el-table th.el-table__cell {
+  font-weight: 600;
+}
+
+/* 标签：圆角 6；浅底和描边两种状态标签的字用深一档的 ink 色才看得清
+   （组件库写的是 .el-tag.el-tag--success，这里用同样两个类名的写法，排在后面才生效；实色底的 dark 效果不动） */
+.el-tag {
+  --el-tag-border-radius: var(--radius-xs);
+}
+
+.el-tag--light.el-tag--success,
+.el-tag--plain.el-tag--success {
+  --el-tag-text-color: var(--success-ink);
+}
+
+.el-tag--light.el-tag--warning,
+.el-tag--plain.el-tag--warning {
+  --el-tag-text-color: var(--warning-ink);
+}
+
+.el-tag--light.el-tag--danger,
+.el-tag--plain.el-tag--danger {
+  --el-tag-text-color: var(--danger-ink);
+}
+
+.el-tag--light.el-tag--info,
+.el-tag--plain.el-tag--info {
+  --el-tag-text-color: var(--text-muted);
+}
+
+/* 填充的主按钮和选中的分段按钮用 brand-btn：深色下比链接色深一档，白字才看得清 */
+.el-radio-group .el-radio-button {
+  --el-radio-button-checked-bg-color: var(--brand-btn);
+  --el-radio-button-checked-border-color: var(--brand-btn);
+}
+
+.el-button--primary {
+  --el-button-bg-color: var(--brand-btn);
+  --el-button-border-color: var(--brand-btn);
+  --el-button-hover-bg-color: var(--brand-btn-hover);
+  --el-button-hover-border-color: var(--brand-btn-hover);
+  --el-button-active-bg-color: var(--brand-btn-active);
+  --el-button-active-border-color: var(--brand-btn-active);
+}
+
+/* 描边的状态按钮（如「注销账号」）：浅底上的字用深一档的 ink 色 */
+.el-button--success.is-plain {
+  --el-button-text-color: var(--success-ink);
+}
+
+.el-button--warning.is-plain {
+  --el-button-text-color: var(--warning-ink);
+}
+
+.el-button--danger.is-plain {
+  --el-button-text-color: var(--danger-ink);
+}
+
+/* 头像：浅底配品牌色的字（组件库默认是浅灰底白字，看不清） */
+.el-avatar {
+  --el-avatar-bg-color: var(--brand-soft);
+  --el-avatar-text-color: var(--brand-600);
+}
+
+/* 手机上输入框用 16px：iPhone 在字号小于 16px 的输入框聚焦时会放大页面 */
+@media (max-width: 767px) {
+  .el-input,
+  .el-textarea,
+  .el-select__wrapper,
+  .el-date-editor.el-range-editor .el-range-input {
+    font-size: 16px;
+  }
+}
+
+/* ============================ 响应式 ============================ */
+
+@media (max-width: 860px) {
+  .stat-grid {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  }
+
+  .chart,
+  .chart-tall {
+    height: 230px;
+  }
+}
+
+/* 空状态：插图缩小、上下留白收紧，各页面统一；个别页面再用 image-size 指定 */
+.el-empty {
+  --el-empty-image-width: 88px;
+  --el-empty-padding: 20px 0;
+  --el-empty-description-margin-top: 10px;
+}

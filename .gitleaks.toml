@@ -1,0 +1,32 @@
+title = "AlgoHub secret scanning"
+[extend]
+useDefault = true
+
+# Narrow, reviewed false positives. No directory-wide test/example exclusions.
+[[allowlists]]
+description = "Synthetic JWT with literal signature text used by the redaction unit test"
+condition = "AND"
+paths = ['''backend/src/test/java/com/szpu/algohub/common/RedactionTest\.java$''']
+regexTarget = "line"
+regexes = ['''c2lnbmF0dXJlLXNpZ25hdHVyZQ''']
+
+[[allowlists]]
+description = "Sequential mock token; never issued by any service"
+condition = "AND"
+paths = ['''backend/src/test/java/com/szpu/algohub/platform/adapter/LanqiaoAdapterTest\.java$''']
+regexTarget = "line"
+regexes = ['''private static final String TOKEN = "0123456789abcdef0123456789abcdef";''']
+
+[[allowlists]]
+description = "SQL string expression mistaken for a key assignment"
+condition = "AND"
+paths = ['''backend/src/test/java/com/szpu/algohub/statistics/CampusRankingTest\.java$''']
+regexTarget = "line"
+regexes = ['''jdbc\.queryForObject\("insert into platform_account\(''']
+
+[[allowlists]]
+description = "Runtime response parsing expression, not a literal credential"
+condition = "AND"
+paths = ['''backend/src/test/java/com/szpu/algohub/auth/AuthApiTest\.java$''']
+regexTarget = "line"
+regexes = ['''String (accessToken|token)\s*=.*(readTree|path\(|getResponse)''']

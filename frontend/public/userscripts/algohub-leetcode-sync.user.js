@@ -1,0 +1,461 @@
+// ==UserScript==
+// @name         AlgoHub 力扣 AC 时间同步
+// @namespace    https://www.algohub.top/
+// @version      1.1.0
+// @description  在本人力扣浏览器内同步 AC 时间，可选择每 1-12 小时自动运行，不上传 Cookie。
+// @match        https://leetcode.cn/*
+// @grant        GM_xmlhttpRequest
+// @grant        GM_getValue
+// @grant        GM_setValue
+// @grant        GM_deleteValue
+// @connect      www.algohub.top
+// @run-at       document-idle
+// @downloadURL  https://www.algohub.top/userscripts/algohub-leetcode-sync.user.js
+// @updateURL    https://www.algohub.top/userscripts/algohub-leetcode-sync.user.js
+// ==/UserScript==
+
+(() => {
+  'use strict'
+  if (window.top !== window.self) return
+  const endpoint = 'https://www.algohub.top/api/leetcode/browser-import/page'
+  const autoEndpoint = 'https://www.algohub.top/api/leetcode/browser-import/auto-begin'
+  const autoKey = 'algohub.leetcode.auto-grant'
+  const intervalKey = 'algohub.leetcode.auto-hours'
+  const successKey = 'algohub.leetcode.last-success'
+  const attemptKey = 'algohub.leetcode.last-attempt'
+  const panel = document.createElement('div')
+  Object.assign(panel.style, {
+    position: 'fixed', right: '12px', bottom: '12px', zIndex: '2147483647',
+    width: '188px', maxWidth: 'calc(100vw - 24px)', boxSizing: 'border-box',
+    padding: '6px', borderRadius: '10px', background: '#fff', color: '#1f2937',
+    boxShadow: '0 2px 12px #0002', fontSize: '12px', fontFamily: 'sans-serif'
+  })
+  panel.setAttribute('aria-label', 'AlgoHub 力扣同步助手')
+  const header = document.createElement('div')
+  header.style.cssText = 'display:flex;align-items:center;gap:4px'
+  const button = document.createElement('button')
+  button.textContent = 'AlgoHub 同步'
+  Object.assign(button.style, {
+    flex: '1', minWidth: '0', height: '36px', padding: '0 8px', border: '0', borderRadius: '7px', cursor: 'pointer',
+    background: '#4f46e5', color: '#fff', fontSize: '12px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
+  })
+  const toggle = document.createElement('button')
+  toggle.textContent = '设置'
+  toggle.setAttribute('aria-expanded', 'false')
+  toggle.style.cssText = 'height:36px;padding:0 8px;border:0;border-radius:7px;background:#f1f5f9;color:#475569;font-size:12px;cursor:pointer;flex-shrink:0'
+  const settings = document.createElement('div')
+  settings.hidden = true
+  settings.id = 'algohub-leetcode-sync-settings'
+  toggle.setAttribute('aria-controls', settings.id)
+  toggle.addEventListener('click', () => {
+    settings.hidden = !settings.hidden
+    toggle.textContent = settings.hidden ? '设置' : '收起'
+    toggle.setAttribute('aria-expanded', String(!settings.hidden))
+    panel.style.width = settings.hidden ? '188px' : '260px'
+    note.style.webkitLineClamp = settings.hidden ? '2' : 'unset'
+  })
+  const schedule = document.createElement('select')
+  schedule.setAttribute('aria-label', '力扣自动同步间隔')
+  schedule.style.cssText = 'margin-left:8px;padding:4px;border:1px solid #cbd5e1;border-radius:5px;background:#fff;color:#1f2937;font-size:12px'
+  for (let hours = 0; hours <= 12; hours++) {
+    const option = document.createElement('option')
+    option.value = String(hours)
+    option.textContent = hours ? `${hours} 小时` : '不自动同步'
+    schedule.appendChild(option)
+  }
+  schedule.value = String(GM_getValue(intervalKey, 6))
+  schedule.addEventListener('change', () => GM_setValue(intervalKey, Number(schedule.value)))
+  const note = document.createElement('div')
+  note.style.cssText = 'margin:4px 2px 0;color:#64748b;font-size:11px;line-height:1.4;overflow-wrap:anywhere;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden'
+  note.setAttribute('role', 'status')
+  note.textContent = '就绪 · 设置中可调整自动同步'
+  // Keep the full status available even when the compact panel truncates it.
+  new MutationObserver(() => { note.title = note.textContent; button.title = button.textContent }).observe(panel, { subtree: true, childList: true, characterData: true })
+  const scheduleLabel = document.createElement('label')
+  scheduleLabel.textContent = '自动同步'
+  scheduleLabel.style.cssText = 'display:block;margin-top:10px'
+  scheduleLabel.appendChild(schedule)
+  const help = document.createElement('p')
+  help.style.cssText = 'margin:6px 0;color:#64748b;font-size:11px;line-height:1.5'
+  help.textContent = '仅在力扣网页开启、已登录且授权有效时运行；频率越高越可能触发源站限制。'
+  header.append(button, toggle)
+  settings.append(scheduleLabel, help)
+  panel.append(header, note, settings)
+  const retryButton = document.createElement('button')
+  retryButton.textContent = '立即重新检查'
+  retryButton.style.cssText = 'margin-top:8px;cursor:pointer'
+  settings.append(retryButton)
+  document.body.appendChild(panel)
+  const resumeButton = document.createElement('button')
+  resumeButton.textContent = '续传上次上传'
+  resumeButton.style.cssText = 'margin-top:8px;cursor:pointer'
+  settings.append(resumeButton)
+  let running = false
+  const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
+  // BEGIN shared browser sync runtime (generated by build-userscript-runtime.mjs)
+  async function mapLimited(items, worker, width = 2) {
+    const results = new Array(items.length)
+    let next = 0, failure
+    await Promise.all(Array.from({ length: Math.min(width, items.length) }, async () => {
+      while (!failure && next < items.length) {
+        const index = next++
+        try { results[index] = await worker(items[index], index) }
+        catch (error) { failure ||= error }
+      }
+    }))
+    if (failure) throw failure
+    return results
+  }
+  let sourceGate = Promise.resolve(), nextSourceAt = 0, sourceCooldown = 0, sourceSpacing = 750
+  function sourceTurn() {
+    const turn = sourceGate.then(async () => {
+      if (sourceCooldown - Date.now() > 300000) throw new Error('源站要求较长时间后重试，本轮已停止')
+      await sleep(Math.max(0, nextSourceAt - Date.now(), sourceCooldown - Date.now()))
+      // Recheck a cooldown raised by another in-flight request while waiting.
+      if (sourceCooldown - Date.now() > 300000) throw new Error('源站要求较长时间后重试，本轮已停止')
+      if (sourceCooldown > Date.now()) await sleep(sourceCooldown - Date.now())
+      nextSourceAt = Date.now() + sourceSpacing
+    })
+    sourceGate = turn.catch(() => {})
+    return turn
+  }
+  async function fetchSource(url, options = {}, json = false) {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      await sourceTurn()
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 20000)
+      try {
+        const response = await fetch(url, { ...options, credentials: 'same-origin', cache: 'no-store', signal: controller.signal })
+        if (!response.ok) {
+          const error = new Error(`源站返回 ${response.status}，本轮未完成，请稍后重试`)
+          error.retryable = response.status === 429 || response.status >= 500
+          const retryAfter = response.headers?.get('Retry-After')
+          error.delay = retryAfter && (/^\d+$/.test(retryAfter) ? Number(retryAfter) * 1000 : Date.parse(retryAfter) - Date.now())
+          if (response.status === 429) sourceSpacing = 3000
+          throw error
+        }
+        return await (json ? response.json() : response.text())
+      } catch (error) {
+        if (error.retryable === false || error instanceof SyntaxError) throw error
+        const delay = Math.max(attempt === 0 ? 3000 : 8000, Number(error.delay) || 0)
+        sourceCooldown = Math.max(sourceCooldown, Date.now() + delay)
+        if (attempt === 2 || delay > 300000) throw error
+        note.textContent = `源站暂时无法读取，稍后重试（${attempt + 1}/2）…`
+      } finally { clearTimeout(timeout) }
+    }
+  }
+  const pendingKey = `${autoKey}.pending-upload-v1`
+  let memoryPending = null
+  function pendingUpload() {
+    let saved
+    try { saved = memoryPending || GM_getValue(pendingKey, null) } catch { return null }
+    if (saved && Number.isSafeInteger(saved.createdAt) && Date.now() - saved.createdAt > 20 * 60000) {
+      clearPending()
+      return null
+    }
+    if (!saved || saved.version !== 1 || !Number.isSafeInteger(saved.createdAt)
+        || Date.now() - saved.createdAt > 20 * 60000 || saved.createdAt > Date.now()
+        || typeof saved.ticket !== 'string' || typeof saved.uid !== 'string'
+        || !saved.ticket.startsWith(`${saved.uid}.`) || !Array.isArray(saved.pages)
+        || !Number.isInteger(saved.next) || saved.next < 0 || saved.next >= saved.pages.length) return null
+    const total = saved.pages[0]?.total, size = saved.pages[0]?.perPage, ids = new Set()
+    if (!Number.isInteger(total) || total < 0 || total > 20000 || size !== 500
+        || saved.pages.length !== Math.max(1, Math.ceil(total / size))) return null
+    for (let i = 0; i < saved.pages.length; i++) {
+      const p = saved.pages[i]
+      if (!p || p.page !== i + 1 || p.total !== total || p.perPage !== size || !Array.isArray(p.rows)
+          || p.rows.length !== Math.min(size, Math.max(0, total - i * size))) return null
+      for (const r of p.rows) {
+        if (!r || r.uid !== saved.uid || typeof r.id !== 'string' || !/^[1-9][0-9]{0,17}$/.test(r.id)
+            || ids.has(r.id) || !Number.isSafeInteger(r.submitTime) || r.submitTime < 1000000000) return null
+        ids.add(r.id)
+      }
+    }
+    return saved
+  }
+  function savePending(saved) {
+    memoryPending = saved
+    try { GM_setValue(pendingKey, saved) } catch { /* Storage quota must not abort a valid import. */ }
+  }
+  function clearPending() {
+    memoryPending = null
+    try { GM_deleteValue(pendingKey) } catch { /* Expiry still prevents stale reuse. */ }
+  }
+  async function uploadWithRetry(ticket, payload) {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try { return await upload(ticket, payload) }
+      catch (error) {
+        if (!error.retryable || attempt === 2) throw error
+        note.textContent = `上传暂时中断，正在重传第 ${payload.page} 批（${attempt + 1}/2）…`
+        await sleep(attempt === 0 ? 3000 : 8000)
+      }
+    }
+  }
+  // END shared browser sync runtime
+  // Queries and enum values match LeetCode's progress page (checked 2026-10-29).
+  const questionQuery = `query userProgressQuestionList($filters: UserProgressQuestionListInput) {
+    userProgressQuestionList(filters: $filters) { totalNum questions {
+      titleSlug title translatedTitle frontendId numSubmitted lastSubmittedAt questionStatus
+    } }
+  }`
+  const submissionQuery = `query userProgressSubmissionList($offset: Int!, $limit: Int!, $questionSlug: String!) {
+    userProgressSubmissionList(offset: $offset, limit: $limit, questionSlug: $questionSlug) {
+      totalNum submissions { id status langName: langVerboseName timestamp }
+    }
+  }`
+  async function query(query, variables = {}) {
+    // CSRF stays on leetcode.cn; only parsed AC fields are sent to AlgoHub.
+    const csrf = document.cookie.split(';').map(v => v.trim()).find(v => v.startsWith('csrftoken='))?.slice(10)
+    const body = await fetchSource('/graphql/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(csrf ? {'X-CSRFToken': decodeURIComponent(csrf)} : {}) },
+      body: JSON.stringify({query, variables})
+    }, true)
+    if (body.errors?.length || !body.data) throw new Error('力扣查询失败，请确认已登录；源站接口变化时需要更新脚本')
+    return body.data
+  }
+  async function currentSession() {
+    const data = await query('query { userStatus { isSignedIn userSlug activeSessionId } }')
+    const user = data.userStatus
+    if (!user?.isSignedIn || !/^[A-Za-z0-9_-]{1,64}$/.test(user.userSlug)) throw new Error('请先登录力扣')
+    return { uid: user.userSlug, session: user.activeSessionId }
+  }
+  async function currentUid() { return (await currentSession()).uid }
+  function checkedPage(data, key, offset, limit, expected) {
+    if (!data || !Number.isSafeInteger(data.totalNum) || data.totalNum < 0 || data.totalNum > 20000
+        || !Array.isArray(data[key]) || data[key].length !== Math.min(limit, Math.max(0,data.totalNum-offset))
+        || (expected !== undefined && data.totalNum !== expected))
+      throw new Error('力扣分页不完整或数量变化，本轮未上传')
+    return data
+  }
+  async function readQuestions() {
+    const questions = [], seen = new Set()
+    let total
+    for (let offset=0; offset===0 || offset<total; offset+=50) {
+      const data = checkedPage((await query(questionQuery,{filters:{skip:offset,limit:50}})).userProgressQuestionList,'questions',offset,50,total)
+      total=data.totalNum
+      for (const q of data.questions) {
+        if (!q || !/^[A-Za-z0-9_-]{1,128}$/.test(q.titleSlug) || seen.has(q.titleSlug)
+            || !Number.isSafeInteger(q.numSubmitted) || q.numSubmitted<1)
+          throw new Error('力扣题目列表重复或字段异常，本轮未上传')
+        seen.add(q.titleSlug); questions.push(q)
+      }
+    }
+    return questions
+  }
+  function recordOf(s, q, uid) {
+    if (!s || !['AC','WA','TLE','MLE','OLE','RE','CE','IE','RF','TO'].includes(s.status))
+      throw new Error('力扣评测尚未结束或状态未知，本轮未上传')
+    if (!/^[1-9][0-9]{0,17}$/.test(String(s.id))) throw new Error('力扣提交编号异常')
+    const raw=String(s.timestamp)
+    const submitTime=/^[0-9]+$/.test(raw) ? Number(raw) : /(?:Z|[+-]\d{2}:\d{2})$/.test(raw) ? Date.parse(raw)/1000 : NaN
+    if (!Number.isSafeInteger(submitTime) || submitTime<1000000000 || submitTime>Date.now()/1000+300)
+      throw new Error('力扣提交时间异常或缺少时区')
+    return {id:String(s.id),uid,pid:q.titleSlug,title:`${q.frontendId || ''}. ${q.translatedTitle || q.title || q.titleSlug}`.slice(0,200),difficulty:null,submitTime,language:s.langName?.slice(0,40) || null}
+  }
+  const fingerprint = questions => JSON.stringify(questions.map(q => [q.titleSlug,q.numSubmitted,q.lastSubmittedAt,q.questionStatus]).sort((a,b)=>a[0].localeCompare(b[0])))
+  async function readSnapshot(uid) {
+    const before = await currentSession()
+    if (before.uid!==uid) throw new Error('当前力扣账号与连接码不一致')
+    const questions=await readQuestions(), seen=new Set(), jobs=[]
+    if (questions.reduce((n,q)=>n+q.numSubmitted,0)>20000)
+      throw new Error('提交记录超过本轮上限，本轮未上传')
+    for (const q of questions) {
+      for (let offset=0; offset<q.numSubmitted; offset+=10) jobs.push({q,offset})
+    }
+    let finished=0, accepted=0
+    const chunks=await mapLimited(jobs,async ({q,offset})=>{
+      const data=checkedPage((await query(submissionQuery,{offset,limit:10,questionSlug:q.titleSlug})).userProgressSubmissionList,'submissions',offset,10,q.numSubmitted)
+      const rows=[]
+      for (const s of data.submissions) {
+        const record=recordOf(s,q,uid)
+        if (seen.has(record.id)) throw new Error('力扣提交分页重复，本轮未上传')
+        seen.add(record.id)
+        if (s.status==='AC') rows.push(record)
+      }
+      accepted+=rows.length
+      button.textContent=`读取提交 ${++finished}/${jobs.length} 页`
+      note.textContent=`已读取 ${seen.size} 次提交，其中 ${accepted} 次 AC`
+      return rows
+    })
+    const records=chunks.flat()
+    if (fingerprint(await readQuestions())!==fingerprint(questions)) throw new Error('读取期间力扣记录变化，请重试')
+    const after=await currentSession()
+    if (after.uid!==uid || after.session!==before.session) throw new Error('读取期间力扣账号或做题进度切换，本轮未上传')
+    const totals=(await query(`query($userSlug:String!){userProfileUserQuestionProgressV2(userSlug:$userSlug){numAcceptedQuestions{difficulty count}}}`,{userSlug:uid})).userProfileUserQuestionProgressV2?.numAcceptedQuestions
+    if (!Array.isArray(totals) || totals.length!==3 || new Set(totals.map(t=>t.difficulty)).size!==3
+        || totals.some(t=>!['EASY','MEDIUM','HARD'].includes(t.difficulty) || !Number.isSafeInteger(t.count) || t.count<0))
+      throw new Error('无法核对力扣过题总数，本轮未上传')
+    if (new Set(records.map(r=>r.pid)).size!==totals.reduce((n,t)=>n+t.count,0))
+      throw new Error('历史 AC 题目与力扣总数不一致，可能未包含全部做题进度，本轮未上传')
+    const pages=[]
+    for(let offset=0;offset<records.length || offset===0;offset+=500)
+      pages.push({page:offset/500+1,total:records.length,perPage:500,rows:records.slice(offset,offset+500)})
+    return pages
+  }
+  function upload(ticket, payload) {
+    return new Promise((resolve, reject) => {
+      GM_xmlhttpRequest({
+        method: 'POST', url: endpoint, timeout: 30000, anonymous: true,
+        headers: { 'Content-Type': 'application/json', 'X-AlgoHub-Import-Ticket': ticket },
+        data: JSON.stringify(payload),
+        onload: response => {
+          try {
+            const result = JSON.parse(response.responseText)
+            if (response.status < 200 || response.status >= 300 || !result.success)
+              throw Object.assign(new Error(result.message || `AlgoHub 返回 ${response.status}`), { retryable: response.status === 429 || response.status >= 500, invalidTicket: response.status === 403 })
+            resolve(result.data)
+          } catch (error) {
+            // A proxy may return HTML on 429/5xx; keep retry semantics even if JSON parsing fails.
+            if (response.status === 429 || response.status >= 500) error.retryable = true
+            if (response.status === 403) error.invalidTicket = true
+            reject(error)
+          }
+        },
+        onerror: () => reject(Object.assign(new Error('连接 AlgoHub 失败，请检查网络'), { retryable: true })),
+        ontimeout: () => reject(Object.assign(new Error('连接 AlgoHub 超时，请稍后再试'), { retryable: true }))
+      })
+    })
+  }
+  function autoBegin(token) {
+    return new Promise((resolve, reject) => {
+      GM_xmlhttpRequest({
+        method: 'POST', url: autoEndpoint, timeout: 30000, anonymous: true,
+        headers: { 'X-AlgoHub-Auto-Token': token },
+        onload: response => {
+          try {
+            const result = JSON.parse(response.responseText)
+            if (response.status < 200 || response.status >= 300 || !result.success)
+              throw new Error(result.message || `AlgoHub 返回 ${response.status}`)
+            resolve(result.data)
+          } catch (error) { reject(error) }
+        },
+        onerror: () => reject(new Error('连接 AlgoHub 失败')),
+        ontimeout: () => reject(new Error('连接 AlgoHub 超时'))
+      })
+    })
+  }
+  async function run(ticket, automatic) {
+    if (running) return
+    const match = /^([A-Za-z0-9_-]{1,64})\.[A-Za-z0-9_-]{43}$/.exec(ticket)
+    if (!match) throw new Error('同步码格式不正确，请重新复制')
+    running = true
+    button.disabled = true
+    retryButton.disabled = true
+    resumeButton.disabled = true
+    try {
+      const uid = match[1]
+      if (await currentUid() !== uid) throw new Error('当前力扣登录账号与绑定账号不一致，已停止同步')
+      // A failed/partial recheck must not inherit an older six-hour success delay.
+      GM_deleteValue(successKey)
+      GM_setValue(attemptKey, Date.now())
+      let pending = pendingUpload()
+      if (!pending || pending.ticket !== ticket || pending.uid !== uid) {
+        const pages = await readSnapshot(uid)
+        pending = { version: 1, ticket, uid, automatic, createdAt: Date.now(), pages, next: 0 }
+        savePending(pending)
+      } else {
+        note.textContent = `续传 ${new Date(pending.createdAt).toLocaleTimeString('zh-CN')} 已核对的数据；完成后可再同步新提交。`
+      }
+      const pages = pending.pages
+      for (let index = pending.next; index < pages.length; index++) {
+        const payload = pages[index]
+        const page = payload.page
+        button.textContent = `AlgoHub 上传 ${Math.min(page * payload.perPage, payload.total)}/${payload.total}`
+        const result = await uploadWithRetry(ticket, payload)
+        const last = page === pages.length
+        if (!result || result.complete !== last || result.total !== payload.total
+            || result.received !== Math.min(page * payload.perPage, payload.total))
+          throw new Error('AlgoHub 返回的导入进度不一致，未确认完成；请重新生成连接码核查')
+        if (!last) { pending.next = index + 1; savePending(pending) }
+        if (result.complete) {
+          clearPending()
+          const newest = pages.flatMap(item => item.rows).reduce((latest, row) => Math.max(latest, row.submitTime), 0)
+          const summary = `本轮已上传 ${result.total} 条可见 AC 记录。` + (newest
+            ? `最新一条：${new Date(newest * 1000).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false })}。`
+            : '力扣当前过题数与 AC 记录均为空。')
+          button.textContent = 'AlgoHub 本轮已上传'
+          note.textContent = summary + ' 已核对过题总数；热力图每题只计首次 AC，重复 AC 不重复计数。'
+          GM_setValue(successKey, Date.now())
+          if (!automatic) {
+            if (result.autoEnabled) GM_setValue(autoKey, { uid, token: ticket })
+            else GM_deleteValue(autoKey)
+            window.alert(note.textContent + (result.autoEnabled ? ' 自动同步已连接。' : ''))
+          }
+          return
+        }
+      }
+      throw new Error('评测分页超过 500 页，未完成整轮同步')
+    } catch (error) {
+      if (error.invalidTicket) clearPending()
+      button.textContent = 'AlgoHub 同步失败'
+      const message = error instanceof Error ? error.message : '同步失败，请稍后重试'
+      note.textContent = message
+      if (!automatic) window.alert(message)
+    } finally {
+      running = false
+      button.disabled = false
+      retryButton.disabled = false
+      resumeButton.disabled = false
+      resumeButton.hidden = !pendingUpload()
+      setTimeout(() => { button.textContent = 'AlgoHub 同步' }, 5000)
+    }
+  }
+  resumeButton.hidden = !pendingUpload()
+  resumeButton.addEventListener('click', async () => {
+    if (running) return
+    const pending = pendingUpload()
+    if (!pending) { resumeButton.hidden = true; note.textContent = '续传数据已过期，请重新同步'; return }
+    try { await run(pending.ticket, pending.automatic) }
+    catch (error) { note.textContent = error.message }
+  })
+  button.addEventListener('click', async () => {
+    if (running) return
+    const ticket = window.prompt('先到 algohub.top/leetcode-sync 生成同步码，然后粘贴到这里：')?.trim()
+    if (!ticket) return
+    try { await run(ticket, false) }
+    catch (error) { window.alert(error instanceof Error ? error.message : '同步码无效') }
+  })
+  retryButton.addEventListener('click', async () => {
+    if (running) return
+    const grant = GM_getValue(autoKey, null)
+    if (!grant?.token || !grant?.uid) {
+      window.alert('未保存自动同步授权，请回 AlgoHub 生成新的连接码，再点「AlgoHub 同步」。')
+      return
+    }
+    retryButton.disabled = true
+    try {
+      if (await currentUid() !== grant.uid) throw new Error('当前力扣登录账号与授权账号 不一致')
+      const next = await autoBegin(grant.token)
+      if (next.uid !== grant.uid) throw new Error('授权账号不一致')
+      GM_setValue(attemptKey, Date.now())
+      await run(next.ticket, true)
+    } catch (error) {
+      note.textContent = error instanceof Error ? error.message : '暂时无法重新检查'
+      window.alert(note.textContent)
+    } finally { retryButton.disabled = false }
+  })
+  async function maybeAutoSync() {
+    if (running) return
+    const grant = GM_getValue(autoKey, null)
+    const hours = Number(GM_getValue(intervalKey, 6))
+    if (!grant?.token || !grant?.uid || !Number.isInteger(hours) || hours < 1 || hours > 12) return
+    const now = Date.now()
+    if (now - Number(GM_getValue(successKey, 0)) < hours * 3600000
+        || now - Number(GM_getValue(attemptKey, 0)) < 30 * 60000) return
+    GM_setValue(attemptKey, now)
+    try {
+      if (await currentUid() !== grant.uid) {
+        note.textContent = '当前力扣登录账号与授权账号 不一致，自动同步已跳过。'
+        return
+      }
+      const next = await autoBegin(grant.token)
+      if (next.uid !== grant.uid) throw new Error('授权账号不一致，已停止自动同步')
+      await run(next.ticket, true)
+    } catch (error) {
+      note.textContent = error instanceof Error ? error.message : '自动同步暂不可用'
+    }
+  }
+  setInterval(() => { void maybeAutoSync() }, 60000)
+  void maybeAutoSync()
+})()

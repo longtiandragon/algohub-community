@@ -1,0 +1,60 @@
+# 构建产物
+backend/target/
+frontend/dist/
+frontend/public/THIRD_PARTY_LICENSES.txt
+frontend/node_modules/
+frontend/*.tsbuildinfo
+dump.rdb
+
+# 本机凭据密钥：不得提交到版本库
+backend/local-secret/
+local-secret/
+*.key
+
+# 导出的个人数据（可能含学习记录，不入库）
+exports/
+
+# 数据库备份
+backup/
+*.dump
+
+# IDE 与系统文件
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# 日志
+*.log
+deploy/production.env
+deploy/.env
+
+# 本地会话与工具目录
+.claude/
+
+# 版式自查用的截图，不入库
+frontend/.screenshots/
+
+# Private configuration and runtime data (examples remain versioned)
+.env
+.env.*
+!.env.example
+!*.env.example
+*.pem
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*
+*.sqlite
+*.sqlite3
+*.db
+*.sql.gz
+*.sql.zip
+*.bak
+backups/
+logs/
+uploads/
+data/
+.audit/
+**/__pycache__/

@@ -1,0 +1,10 @@
+[Unit]
+Description=AlgoHub database/cache/backend probe
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/algohub/production.env
+RuntimeDirectory=algohub-monitor
+RuntimeDirectoryPreserve=yes
+ExecStart=/bin/bash /opt/algohub/deploy/check-health.sh
+UMask=0077
+NoNewPrivileges=true

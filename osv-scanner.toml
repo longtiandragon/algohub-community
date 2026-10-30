@@ -1,0 +1,13 @@
+# Reviewed 2026-10-30 against the application MVC mappings. These are feature-
+# conditional advisories, not fixed dependencies. Reassess on expiry or before
+# introducing server-side views/SSE. MvcSecurityAssumptionsTest guards this scope.
+# Spring 6.2.20 is commercial-only; migrate Boot/Framework together for an OSS fix.
+[[IgnoredVulns]]
+id = "GHSA-pc63-qcmh-9cmg"
+ignoreUntil = 2026-12-01
+reason = "CVE-2026-47884 requires XsltView and implicit view rendering. AlgoHub uses response-body API controllers and no XSLT views/resolvers. https://spring.io/security/cve-2026-47884/"
+
+[[IgnoredVulns]]
+id = "GHSA-j9f9-w8pj-32f8"
+ignoreUntil = 2026-12-01
+reason = "CVE-2026-47890 requires SSE carrying view fragments. AlgoHub has no SSE/fragment endpoints; messages use HTTP polling. https://spring.io/security/cve-2026-47890/"

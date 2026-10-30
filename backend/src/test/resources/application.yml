@@ -1,0 +1,55 @@
+server:
+  address: 127.0.0.1
+  port: 0
+
+spring:
+  datasource:
+    # 测试库与开发库分开，避免污染本地数据。需要先执行：
+    # docker exec algohub-postgres psql -U algohub -d postgres -c "CREATE DATABASE algohub_test OWNER algohub;"
+    url: jdbc:postgresql://127.0.0.1:5433/algohub_test
+    username: algohub
+    password: algohub_local_dev
+    # 测试会缓存十几套应用上下文，每套一个连接池：空闲时只留 1 个连接，
+    # 否则默认每套常驻 10 个，加起来超过数据库 100 个连接上限（报 too many clients）
+    hikari:
+      minimum-idle: 1
+      maximum-pool-size: 10
+      idle-timeout: 10000
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6380
+      database: 15
+      timeout: 3s
+  flyway:
+    enabled: true
+    clean-disabled: false
+  jackson:
+    time-zone: UTC
+
+mybatis:
+  configuration:
+    map-underscore-to-camel-case: true
+    # Map 结果也保留值为 null 的列，前端据此区分“无数据”与“字段缺失”
+    call-setters-on-nulls: true
+
+algohub:
+  reminders:
+    enabled: false
+  # MockMvc 请求都来自 127.0.0.1：整套测试共用一个 IP 计数，放宽；按 IP 限频另有专门测试
+  outbound-guard:
+    per-ip: 100000
+  security:
+    jwt-secret-file: ./target/test-secret/jwt-key.txt
+    access-token-minutes: 5
+    refresh-token-days: 1
+  sync:
+    # 测试不启动后台同步线程，避免访问外部平台。
+    enabled: false
+  credential:
+    key-file: ./target/test-secret/credential-key.txt
+
+logging:
+  level:
+    root: warn
+    com.szpu.algohub: info

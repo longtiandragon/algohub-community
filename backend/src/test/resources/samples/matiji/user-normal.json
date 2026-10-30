@@ -1,0 +1,30 @@
+{
+ "data": {
+  "createDate": 1755198018000,
+  "finishNum": 1708,
+  "headimgurl": "/img/sys/hp.jpg",
+  "id": 10001,
+  "isVip": 0,
+  "nickname": "示例用户",
+  "passNum": 1678,
+  "passPercent": 0.98,
+  "school": "-",
+  "signature": "示例签名",
+  "userMatchRankEntity": {
+   "acCount": 3,
+   "commitCount": 8,
+   "id": 1,
+   "isVip": 0,
+   "matchTime": 1691319600000,
+   "needRating": 1450,
+   "rankCount": 1,
+   "school": "-",
+   "userId": 10001
+  },
+  "vipStopTime": 1759538165000
+ },
+ "error_no": "0",
+ "queryInfo": {
+  "recordList": []
+ }
+}

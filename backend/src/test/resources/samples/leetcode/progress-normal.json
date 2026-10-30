@@ -1,0 +1,20 @@
+{
+ "data": {
+  "userProfileUserQuestionProgressV2": {
+   "numAcceptedQuestions": [
+    {
+     "difficulty": "EASY",
+     "count": 12
+    },
+    {
+     "difficulty": "MEDIUM",
+     "count": 24
+    },
+    {
+     "difficulty": "HARD",
+     "count": 6
+    }
+   ]
+  }
+ }
+}

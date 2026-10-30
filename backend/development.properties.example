@@ -1,0 +1,13 @@
+# Copy to backend/local-secret/development.properties; never commit that file.
+# scripts/init-dev.py fills these placeholders and creates the matching Compose .env.
+spring.datasource.url=jdbc:postgresql://127.0.0.1:5433/algohub
+spring.datasource.username=algohub
+spring.datasource.password=REPLACE_WITH_RANDOM_LOCAL_PASSWORD
+spring.data.redis.host=127.0.0.1
+spring.data.redis.port=6380
+algohub.bootstrap.admin-username=admin
+algohub.bootstrap.admin-password=REPLACE_WITH_RANDOM_LOCAL_ADMIN_PASSWORD
+# Start offline; enable explicitly when testing platform integrations with your own accounts.
+algohub.sync.enabled=false
+algohub.reminders.enabled=false
+algohub.matiji-index.pages-per-run=0

@@ -1,0 +1,448 @@
+// ==UserScript==
+// @name         AlgoHub QOJ AC 时间同步
+// @namespace    https://www.algohub.top/
+// @version      1.1.0
+// @description  在本人QOJ浏览器内同步 AC 时间，可选择每 1-12 小时自动运行，不上传 Cookie。
+// @match        https://qoj.ac/*
+// @grant        GM_xmlhttpRequest
+// @grant        GM_getValue
+// @grant        GM_setValue
+// @grant        GM_deleteValue
+// @connect      www.algohub.top
+// @run-at       document-idle
+// @downloadURL  https://www.algohub.top/userscripts/algohub-qoj-sync.user.js
+// @updateURL    https://www.algohub.top/userscripts/algohub-qoj-sync.user.js
+// ==/UserScript==
+
+(() => {
+  'use strict'
+  if (window.top !== window.self) return
+  const endpoint = 'https://www.algohub.top/api/qoj/browser-import/page'
+  const autoEndpoint = 'https://www.algohub.top/api/qoj/browser-import/auto-begin'
+  const autoKey = 'algohub.qoj.auto-grant'
+  const intervalKey = 'algohub.qoj.auto-hours'
+  const successKey = 'algohub.qoj.last-success'
+  const attemptKey = 'algohub.qoj.last-attempt'
+  const panel = document.createElement('div')
+  Object.assign(panel.style, {
+    position: 'fixed', right: '12px', bottom: '12px', zIndex: '2147483647',
+    width: '188px', maxWidth: 'calc(100vw - 24px)', boxSizing: 'border-box',
+    padding: '6px', borderRadius: '10px', background: '#fff', color: '#1f2937',
+    boxShadow: '0 2px 12px #0002', fontSize: '12px', fontFamily: 'sans-serif'
+  })
+  panel.setAttribute('aria-label', 'AlgoHub QOJ同步助手')
+  const header = document.createElement('div')
+  header.style.cssText = 'display:flex;align-items:center;gap:4px'
+  const button = document.createElement('button')
+  button.textContent = 'AlgoHub 同步'
+  Object.assign(button.style, {
+    flex: '1', minWidth: '0', height: '36px', padding: '0 8px', border: '0', borderRadius: '7px', cursor: 'pointer',
+    background: '#4f46e5', color: '#fff', fontSize: '12px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
+  })
+  const toggle = document.createElement('button')
+  toggle.textContent = '设置'
+  toggle.setAttribute('aria-expanded', 'false')
+  toggle.style.cssText = 'height:36px;padding:0 8px;border:0;border-radius:7px;background:#f1f5f9;color:#475569;font-size:12px;cursor:pointer;flex-shrink:0'
+  const settings = document.createElement('div')
+  settings.hidden = true
+  settings.id = 'algohub-qoj-sync-settings'
+  toggle.setAttribute('aria-controls', settings.id)
+  toggle.addEventListener('click', () => {
+    settings.hidden = !settings.hidden
+    toggle.textContent = settings.hidden ? '设置' : '收起'
+    toggle.setAttribute('aria-expanded', String(!settings.hidden))
+    panel.style.width = settings.hidden ? '188px' : '260px'
+    note.style.webkitLineClamp = settings.hidden ? '2' : 'unset'
+  })
+  const schedule = document.createElement('select')
+  schedule.setAttribute('aria-label', 'QOJ自动同步间隔')
+  schedule.style.cssText = 'margin-left:8px;padding:4px;border:1px solid #cbd5e1;border-radius:5px;background:#fff;color:#1f2937;font-size:12px'
+  for (let hours = 0; hours <= 12; hours++) {
+    const option = document.createElement('option')
+    option.value = String(hours)
+    option.textContent = hours ? `${hours} 小时` : '不自动同步'
+    schedule.appendChild(option)
+  }
+  schedule.value = String(GM_getValue(intervalKey, 6))
+  schedule.addEventListener('change', () => GM_setValue(intervalKey, Number(schedule.value)))
+  const note = document.createElement('div')
+  note.style.cssText = 'margin:4px 2px 0;color:#64748b;font-size:11px;line-height:1.4;overflow-wrap:anywhere;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden'
+  note.setAttribute('role', 'status')
+  note.textContent = '就绪 · 设置中可调整自动同步'
+  // Keep the full status available even when the compact panel truncates it.
+  new MutationObserver(() => { note.title = note.textContent; button.title = button.textContent }).observe(panel, { subtree: true, childList: true, characterData: true })
+  const scheduleLabel = document.createElement('label')
+  scheduleLabel.textContent = '自动同步'
+  scheduleLabel.style.cssText = 'display:block;margin-top:10px'
+  scheduleLabel.appendChild(schedule)
+  const help = document.createElement('p')
+  help.style.cssText = 'margin:6px 0;color:#64748b;font-size:11px;line-height:1.5'
+  help.textContent = '仅在QOJ网页开启、已登录且授权有效时运行；频率越高越可能触发源站限制。'
+  header.append(button, toggle)
+  settings.append(scheduleLabel, help)
+  panel.append(header, note, settings)
+  const retryButton = document.createElement('button')
+  retryButton.textContent = '立即重新检查'
+  retryButton.style.cssText = 'margin-top:8px;cursor:pointer'
+  settings.append(retryButton)
+  document.body.appendChild(panel)
+  const resumeButton = document.createElement('button')
+  resumeButton.textContent = '续传上次上传'
+  resumeButton.style.cssText = 'margin-top:8px;cursor:pointer'
+  settings.append(resumeButton)
+  let running = false
+  const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
+  // BEGIN shared browser sync runtime (generated by build-userscript-runtime.mjs)
+  async function mapLimited(items, worker, width = 2) {
+    const results = new Array(items.length)
+    let next = 0, failure
+    await Promise.all(Array.from({ length: Math.min(width, items.length) }, async () => {
+      while (!failure && next < items.length) {
+        const index = next++
+        try { results[index] = await worker(items[index], index) }
+        catch (error) { failure ||= error }
+      }
+    }))
+    if (failure) throw failure
+    return results
+  }
+  let sourceGate = Promise.resolve(), nextSourceAt = 0, sourceCooldown = 0, sourceSpacing = 750
+  function sourceTurn() {
+    const turn = sourceGate.then(async () => {
+      if (sourceCooldown - Date.now() > 300000) throw new Error('源站要求较长时间后重试，本轮已停止')
+      await sleep(Math.max(0, nextSourceAt - Date.now(), sourceCooldown - Date.now()))
+      // Recheck a cooldown raised by another in-flight request while waiting.
+      if (sourceCooldown - Date.now() > 300000) throw new Error('源站要求较长时间后重试，本轮已停止')
+      if (sourceCooldown > Date.now()) await sleep(sourceCooldown - Date.now())
+      nextSourceAt = Date.now() + sourceSpacing
+    })
+    sourceGate = turn.catch(() => {})
+    return turn
+  }
+  async function fetchSource(url, options = {}, json = false) {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      await sourceTurn()
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 20000)
+      try {
+        const response = await fetch(url, { ...options, credentials: 'same-origin', cache: 'no-store', signal: controller.signal })
+        if (!response.ok) {
+          const error = new Error(`源站返回 ${response.status}，本轮未完成，请稍后重试`)
+          error.retryable = response.status === 429 || response.status >= 500
+          const retryAfter = response.headers?.get('Retry-After')
+          error.delay = retryAfter && (/^\d+$/.test(retryAfter) ? Number(retryAfter) * 1000 : Date.parse(retryAfter) - Date.now())
+          if (response.status === 429) sourceSpacing = 3000
+          throw error
+        }
+        return await (json ? response.json() : response.text())
+      } catch (error) {
+        if (error.retryable === false || error instanceof SyntaxError) throw error
+        const delay = Math.max(attempt === 0 ? 3000 : 8000, Number(error.delay) || 0)
+        sourceCooldown = Math.max(sourceCooldown, Date.now() + delay)
+        if (attempt === 2 || delay > 300000) throw error
+        note.textContent = `源站暂时无法读取，稍后重试（${attempt + 1}/2）…`
+      } finally { clearTimeout(timeout) }
+    }
+  }
+  const pendingKey = `${autoKey}.pending-upload-v1`
+  let memoryPending = null
+  function pendingUpload() {
+    let saved
+    try { saved = memoryPending || GM_getValue(pendingKey, null) } catch { return null }
+    if (saved && Number.isSafeInteger(saved.createdAt) && Date.now() - saved.createdAt > 20 * 60000) {
+      clearPending()
+      return null
+    }
+    if (!saved || saved.version !== 1 || !Number.isSafeInteger(saved.createdAt)
+        || Date.now() - saved.createdAt > 20 * 60000 || saved.createdAt > Date.now()
+        || typeof saved.ticket !== 'string' || typeof saved.uid !== 'string'
+        || !saved.ticket.startsWith(`${saved.uid}.`) || !Array.isArray(saved.pages)
+        || !Number.isInteger(saved.next) || saved.next < 0 || saved.next >= saved.pages.length) return null
+    const total = saved.pages[0]?.total, size = saved.pages[0]?.perPage, ids = new Set()
+    if (!Number.isInteger(total) || total < 0 || total > 20000 || size !== 500
+        || saved.pages.length !== Math.max(1, Math.ceil(total / size))) return null
+    for (let i = 0; i < saved.pages.length; i++) {
+      const p = saved.pages[i]
+      if (!p || p.page !== i + 1 || p.total !== total || p.perPage !== size || !Array.isArray(p.rows)
+          || p.rows.length !== Math.min(size, Math.max(0, total - i * size))) return null
+      for (const r of p.rows) {
+        if (!r || r.uid !== saved.uid || typeof r.id !== 'string' || !/^[1-9][0-9]{0,17}$/.test(r.id)
+            || ids.has(r.id) || !Number.isSafeInteger(r.submitTime) || r.submitTime < 1000000000) return null
+        ids.add(r.id)
+      }
+    }
+    return saved
+  }
+  function savePending(saved) {
+    memoryPending = saved
+    try { GM_setValue(pendingKey, saved) } catch { /* Storage quota must not abort a valid import. */ }
+  }
+  function clearPending() {
+    memoryPending = null
+    try { GM_deleteValue(pendingKey) } catch { /* Expiry still prevents stale reuse. */ }
+  }
+  async function uploadWithRetry(ticket, payload) {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try { return await upload(ticket, payload) }
+      catch (error) {
+        if (!error.retryable || attempt === 2) throw error
+        note.textContent = `上传暂时中断，正在重传第 ${payload.page} 批（${attempt + 1}/2）…`
+        await sleep(attempt === 0 ? 3000 : 8000)
+      }
+    }
+  }
+  // END shared browser sync runtime
+  async function sourceText(url) {
+    return fetchSource(url, { headers: { 'Accept': 'text/html' } })
+  }
+  function parseDocument(text) {
+    const doc = new DOMParser().parseFromString(text, 'text/html')
+    if (doc.querySelector('input[type="password"]') || /login|just a moment/i.test(doc.title))
+      throw new Error('QOJ 登录已失效或正在验证，请先在 QOJ 页面完成登录')
+    return doc
+  }
+  function ownerOf(doc) {
+    const link = [...doc.querySelectorAll('a[href]')].find(a => a.textContent.trim() === 'My Submissions')
+    const uid = link ? new URL(link.getAttribute('href'), 'https://qoj.ac').searchParams.get('submitter') : null
+    if (!uid || !/^[A-Za-z0-9_]{1,64}$/.test(uid)) throw new Error('无法确认 QOJ 当前登录账号，请切换英文界面后重试')
+    return uid
+  }
+  function parsePage(text, uid, page) {
+    const doc = parseDocument(text)
+    if (ownerOf(doc) !== uid) throw new Error('当前 QOJ 登录账号与连接码不一致')
+    const table = [...doc.querySelectorAll('table')].find(t => ['ID','Problem','Submitter','Result','Submit time'].every(h => [...t.querySelectorAll('th')].some(th => th.textContent.trim() === h)))
+    if (!table) throw new Error('QOJ 提交表结构变化，请切换英文界面后重试')
+    const headers = [...table.querySelectorAll('th')].map(th => th.textContent.trim())
+    const rows = []
+    for (const tr of table.querySelectorAll('tr')) {
+      const cells = [...tr.querySelectorAll('td')]
+      if (!cells.length) continue
+      if (cells.length === 1 && /no submissions|no records/i.test(cells[0].textContent)) continue
+      if (cells.length !== headers.length) throw new Error('QOJ 提交字段不完整')
+      const cell = name => cells[headers.indexOf(name)]
+      const score = cell('Result').querySelector('[data-score][data-full]')
+      if (cell('Submitter').querySelector('.uoj-username')?.textContent.trim() !== uid || !score || Number(score.dataset.score) !== 100 || Number(score.dataset.full) !== 100)
+        throw new Error('QOJ 记录账号或 AC 状态不符')
+      const id = /^\/submission\/([1-9][0-9]*)$/.exec(cell('ID').querySelector('a')?.getAttribute('href'))?.[1]
+      const problem = cell('Problem').querySelector('a')
+      const pid = /^\/(?:contest\/[0-9]+\/)?problem\/([1-9][0-9]*)$/.exec(problem?.getAttribute('href'))?.[1]
+      const rawTime = cell('Submit time').querySelector('time[datetime]')?.getAttribute('datetime')
+      if (!rawTime || !/(?:Z|[+-]\d{2}:\d{2})$/.test(rawTime)) throw new Error('QOJ 提交时间缺少时区')
+      const submitTime = Date.parse(rawTime) / 1000
+      if (!id || !pid || !Number.isSafeInteger(submitTime) || submitTime < 1000000000 || submitTime > Date.now()/1000+300)
+        throw new Error('QOJ 提交编号、题号或时间异常')
+      rows.push({id,uid,pid,title:problem.textContent.replace(/^#[0-9]+\.\s*/, '').slice(0,200),difficulty:null,submitTime,language:cell('Language')?.textContent.trim().slice(0,40) || null})
+    }
+    const pageNumbers = [...doc.querySelectorAll('.pagination a[href]')].map(a => Number(new URL(a.getAttribute('href'),'https://qoj.ac').searchParams.get('page') || 1))
+    const more = pageNumbers.some(n => n === page + 1)
+    if (pageNumbers.some(n => !Number.isSafeInteger(n) || n < 1 || n > 500)) throw new Error('QOJ 分页异常')
+    if (!rows.length && (page !== 1 || more || !/no submissions|no records/i.test(table.textContent))) throw new Error('QOJ 返回空页，无法确认读取完整')
+    return {rows,more}
+  }
+  async function readPage(uid, page) {
+    return parsePage(await sourceText(`/submissions?submitter=${encodeURIComponent(uid)}&min_score=100&max_score=100&page=${page}`),uid,page)
+  }
+  function upload(ticket, payload) {
+    return new Promise((resolve, reject) => {
+      GM_xmlhttpRequest({
+        method: 'POST', url: endpoint, timeout: 30000, anonymous: true,
+        headers: { 'Content-Type': 'application/json', 'X-AlgoHub-Import-Ticket': ticket },
+        data: JSON.stringify(payload),
+        onload: response => {
+          try {
+            const result = JSON.parse(response.responseText)
+            if (response.status < 200 || response.status >= 300 || !result.success)
+              throw Object.assign(new Error(result.message || `AlgoHub 返回 ${response.status}`), { retryable: response.status === 429 || response.status >= 500, invalidTicket: response.status === 403 })
+            resolve(result.data)
+          } catch (error) {
+            // A proxy may return HTML on 429/5xx; keep retry semantics even if JSON parsing fails.
+            if (response.status === 429 || response.status >= 500) error.retryable = true
+            if (response.status === 403) error.invalidTicket = true
+            reject(error)
+          }
+        },
+        onerror: () => reject(Object.assign(new Error('连接 AlgoHub 失败，请检查网络'), { retryable: true })),
+        ontimeout: () => reject(Object.assign(new Error('连接 AlgoHub 超时，请稍后再试'), { retryable: true }))
+      })
+    })
+  }
+  function autoBegin(token) {
+    return new Promise((resolve, reject) => {
+      GM_xmlhttpRequest({
+        method: 'POST', url: autoEndpoint, timeout: 30000, anonymous: true,
+        headers: { 'X-AlgoHub-Auto-Token': token },
+        onload: response => {
+          try {
+            const result = JSON.parse(response.responseText)
+            if (response.status < 200 || response.status >= 300 || !result.success)
+              throw new Error(result.message || `AlgoHub 返回 ${response.status}`)
+            resolve(result.data)
+          } catch (error) { reject(error) }
+        },
+        onerror: () => reject(new Error('连接 AlgoHub 失败')),
+        ontimeout: () => reject(new Error('连接 AlgoHub 超时'))
+      })
+    })
+  }
+  async function currentUid() {
+    return ownerOf(parseDocument(await sourceText('/submissions')))
+  }
+  const fingerprint = data => JSON.stringify([data.more,data.rows])
+  async function readSnapshot(uid) {
+    const records = [], seen = new Set()
+    let first
+    for (let page = 1; page <= 500; page++) {
+      button.textContent = `AlgoHub 读取第 ${page} 页…`
+      const data = await readPage(uid,page)
+      if (data.rows.length > 10 || (data.more && data.rows.length !== 10)) throw new Error('QOJ 分页记录不完整，本轮未上传')
+      if (page === 1) first = data
+      for (const row of data.rows) {
+        if (seen.has(row.id)) throw new Error('QOJ 分页出现重复记录，请等评测稳定后重试')
+        seen.add(row.id)
+        records.push(row)
+      }
+      if (records.length > 20000) throw new Error('记录数量超出本轮上限，本轮未上传')
+      note.textContent = `已读取 ${records.length} 条 AC 记录，完成复核后上传`
+      if (!data.more) {
+        if (fingerprint(await readPage(uid,1)) !== fingerprint(first)) throw new Error('读取期间 QOJ 最新记录变化，本轮未上传，请重试')
+        const doc = parseDocument(await sourceText(`/user/profile/${encodeURIComponent(uid)}`))
+        const heading = [...doc.querySelectorAll('h4')].find(h => /^Accepted problems/.test(h.textContent.trim()))
+        const count = heading?.textContent.match(/Accepted problems[：:]\s*(\d+)/)?.[1]
+        const links = heading?.nextElementSibling?.querySelectorAll('a[href]')
+        if (count == null || !links) throw new Error('无法核对 QOJ 主页通过题单，本轮未上传')
+        const profileIds = new Set([...links].map(a => /^\/problem\/([0-9]+)$/.exec(a.getAttribute('href'))?.[1]))
+        const solvedIds = new Set(records.map(r => r.pid))
+        if (profileIds.has(undefined) || profileIds.size !== Number(count) || profileIds.size !== solvedIds.size || [...profileIds].some(id => !solvedIds.has(id)))
+          throw new Error('AC 记录与 QOJ 主页题单不一致，本轮未上传，请稍后重试')
+        const pages = []
+        for(let offset=0; offset < records.length || offset===0; offset+=500)
+          pages.push({page:offset/500+1,total:records.length,perPage:500,rows:records.slice(offset,offset+500)})
+        return pages
+      }
+    }
+    throw new Error('QOJ 分页超过 500 页，本轮未上传')
+  }
+  async function run(ticket, automatic) {
+    if (running) return
+    const match = /^([A-Za-z0-9_]{1,64})\.[A-Za-z0-9_-]{43}$/.exec(ticket)
+    if (!match) throw new Error('同步码格式不正确，请重新复制')
+    running = true
+    button.disabled = true
+    retryButton.disabled = true
+    resumeButton.disabled = true
+    try {
+      const uid = match[1]
+      if (await currentUid() !== uid) throw new Error('当前QOJ登录账号与绑定账号不一致，已停止同步')
+      // A failed/partial recheck must not inherit an older six-hour success delay.
+      GM_deleteValue(successKey)
+      GM_setValue(attemptKey, Date.now())
+      let pending = pendingUpload()
+      if (!pending || pending.ticket !== ticket || pending.uid !== uid) {
+        const pages = await readSnapshot(uid)
+        pending = { version: 1, ticket, uid, automatic, createdAt: Date.now(), pages, next: 0 }
+        savePending(pending)
+      } else {
+        note.textContent = `续传 ${new Date(pending.createdAt).toLocaleTimeString('zh-CN')} 已核对的数据；完成后可再同步新提交。`
+      }
+      const pages = pending.pages
+      for (let index = pending.next; index < pages.length; index++) {
+        const payload = pages[index]
+        const page = payload.page
+        button.textContent = `AlgoHub 上传 ${Math.min(page * payload.perPage, payload.total)}/${payload.total}`
+        const result = await uploadWithRetry(ticket, payload)
+        const last = page === pages.length
+        if (!result || result.complete !== last || result.total !== payload.total
+            || result.received !== Math.min(page * payload.perPage, payload.total))
+          throw new Error('AlgoHub 返回的导入进度不一致，未确认完成；请重新生成连接码核查')
+        if (!last) { pending.next = index + 1; savePending(pending) }
+        if (result.complete) {
+          clearPending()
+          const newest = pages.flatMap(item => item.rows).reduce((latest, row) => Math.max(latest, row.submitTime), 0)
+          const summary = `本轮已上传 ${result.total} 条可见 AC 记录。` + (newest
+            ? `最新一条：${new Date(newest * 1000).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false })}。`
+            : 'QOJ 当前公开通过题单和 AC 列表均为空。')
+          button.textContent = 'AlgoHub 本轮已上传'
+          note.textContent = summary + ' 已核对主页通过题单；发现漏记可稍后重新检查。'
+          GM_setValue(successKey, Date.now())
+          if (!automatic) {
+            if (result.autoEnabled) GM_setValue(autoKey, { uid, token: ticket })
+            else GM_deleteValue(autoKey)
+            window.alert(note.textContent + (result.autoEnabled ? ' 自动同步已连接。' : ''))
+          }
+          return
+        }
+      }
+      throw new Error('评测分页超过 500 页，未完成整轮同步')
+    } catch (error) {
+      if (error.invalidTicket) clearPending()
+      button.textContent = 'AlgoHub 同步失败'
+      const message = error instanceof Error ? error.message : '同步失败，请稍后重试'
+      note.textContent = message
+      if (!automatic) window.alert(message)
+    } finally {
+      running = false
+      button.disabled = false
+      retryButton.disabled = false
+      resumeButton.disabled = false
+      resumeButton.hidden = !pendingUpload()
+      setTimeout(() => { button.textContent = 'AlgoHub 同步' }, 5000)
+    }
+  }
+  resumeButton.hidden = !pendingUpload()
+  resumeButton.addEventListener('click', async () => {
+    if (running) return
+    const pending = pendingUpload()
+    if (!pending) { resumeButton.hidden = true; note.textContent = '续传数据已过期，请重新同步'; return }
+    try { await run(pending.ticket, pending.automatic) }
+    catch (error) { note.textContent = error.message }
+  })
+  button.addEventListener('click', async () => {
+    if (running) return
+    const ticket = window.prompt('先到 algohub.top/qoj-sync 生成同步码，然后粘贴到这里：')?.trim()
+    if (!ticket) return
+    try { await run(ticket, false) }
+    catch (error) { window.alert(error instanceof Error ? error.message : '同步码无效') }
+  })
+  retryButton.addEventListener('click', async () => {
+    if (running) return
+    const grant = GM_getValue(autoKey, null)
+    if (!grant?.token || !grant?.uid) {
+      window.alert('未保存自动同步授权，请回 AlgoHub 生成新的连接码，再点「AlgoHub 同步」。')
+      return
+    }
+    retryButton.disabled = true
+    try {
+      if (await currentUid() !== grant.uid) throw new Error('当前QOJ登录账号与授权账号 不一致')
+      const next = await autoBegin(grant.token)
+      if (next.uid !== grant.uid) throw new Error('授权账号不一致')
+      GM_setValue(attemptKey, Date.now())
+      await run(next.ticket, true)
+    } catch (error) {
+      note.textContent = error instanceof Error ? error.message : '暂时无法重新检查'
+      window.alert(note.textContent)
+    } finally { retryButton.disabled = false }
+  })
+  async function maybeAutoSync() {
+    if (running) return
+    const grant = GM_getValue(autoKey, null)
+    const hours = Number(GM_getValue(intervalKey, 6))
+    if (!grant?.token || !grant?.uid || !Number.isInteger(hours) || hours < 1 || hours > 12) return
+    const now = Date.now()
+    if (now - Number(GM_getValue(successKey, 0)) < hours * 3600000
+        || now - Number(GM_getValue(attemptKey, 0)) < 30 * 60000) return
+    GM_setValue(attemptKey, now)
+    try {
+      if (await currentUid() !== grant.uid) {
+        note.textContent = '当前QOJ登录账号与授权账号 不一致，自动同步已跳过。'
+        return
+      }
+      const next = await autoBegin(grant.token)
+      if (next.uid !== grant.uid) throw new Error('授权账号不一致，已停止自动同步')
+      await run(next.ticket, true)
+    } catch (error) {
+      note.textContent = error instanceof Error ? error.message : '自动同步暂不可用'
+    }
+  }
+  setInterval(() => { void maybeAutoSync() }, 60000)
+  void maybeAutoSync()
+})()

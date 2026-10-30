@@ -1,0 +1,16 @@
+{
+ "instance": "main",
+ "template": "error",
+ "status": 401,
+ "locale": "zh-CN",
+ "data": {
+  "errorCode": 401,
+  "errorType": "LuoguWeb\\Spilopelia\\Exception\\UserUnloginException",
+  "errorMessage": "请先登录",
+  "errorData": {
+   "needLogin": 1
+  }
+ },
+ "user": null,
+ "time": 1790000000
+}

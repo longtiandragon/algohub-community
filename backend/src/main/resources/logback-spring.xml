@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 与 Spring Boot 默认的控制台日志一致，只把消息与异常堆栈换成去掉凭据（Cookie、令牌）的版本。 -->
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+    <conversionRule conversionWord="m" class="com.szpu.algohub.common.logging.RedactingMessageConverter"/>
+    <conversionRule conversionWord="msg" class="com.szpu.algohub.common.logging.RedactingMessageConverter"/>
+    <conversionRule conversionWord="message" class="com.szpu.algohub.common.logging.RedactingMessageConverter"/>
+    <conversionRule conversionWord="wEx" class="com.szpu.algohub.common.logging.RedactingThrowableConverter"/>
+    <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+</configuration>

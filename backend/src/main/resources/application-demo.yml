@@ -1,0 +1,32 @@
+# 示例数据库：页面改版的截图与开发用（docs/2026-09-27-页面重构步骤.md 第 0-2 步）。
+# 先建库：docker exec algohub-postgres psql -U algohub -d postgres -c "CREATE DATABASE algohub_demo OWNER algohub;"
+# 启动：scripts/start-demo.ps1，或在 backend 目录 mvn spring-boot:run "-Dspring-boot.run.profiles=demo"
+# 每次启动都清空 algohub_demo、重新迁移，再按当天日期写入示例数据（DemoDataSeeder）；不向任何 OJ 发请求。
+server:
+  port: 8081
+
+spring:
+  datasource:
+    url: jdbc:postgresql://127.0.0.1:5433/algohub_demo
+  data:
+    redis:
+      # 开发用 0 号库，测试用 15 号库；示例库单独用 14 号，启动时会清空它
+      database: 14
+  flyway:
+    # 只有 demo 配置允许清库；DemoDatabaseReset 清库前还会再核对库名以 _demo 结尾
+    clean-disabled: false
+
+algohub:
+  reminders:
+    enabled: false
+  bootstrap:
+    admin-display-name: 王老师
+  sync:
+    # 不启动后台同步、比赛刷新、码蹄集昵称索引和洛谷标签补全，示例数据不会被真实数据覆盖
+    enabled: false
+  matiji-index:
+    pages-per-run: 0
+  email:
+    # 示例环境不发真实邮件：DemoMailSender 把邮件写进日志（backend/target/demo-start.log），
+    # 登录、绑定邮箱、找回密码的验证码都到那里看
+    from: demo@algohub.local

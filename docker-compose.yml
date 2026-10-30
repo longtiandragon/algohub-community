@@ -1,0 +1,40 @@
+# 本地开发用数据库与缓存。仅监听回环地址，不对外暴露。
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ${POSTGRES_CONTAINER:-algohub-postgres}
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: algohub
+      POSTGRES_USER: algohub
+      POSTGRES_PASSWORD: ${DEV_DB_PASSWORD:-algohub_local_dev}
+      TZ: Asia/Shanghai
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - algohub-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U algohub -d algohub"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    container_name: ${REDIS_CONTAINER:-algohub-redis}
+    restart: unless-stopped
+    # 会话令牌与短期状态存放在 Redis；本地开发仍只监听回环地址。
+    command: ["redis-server", "--appendonly", "yes", "--save", "60", "1"]
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6380}:6379"
+    volumes:
+      - algohub-redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  algohub-pgdata:
+  algohub-redisdata:

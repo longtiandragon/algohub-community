@@ -1,0 +1,19 @@
+# 启动时设置 SPRING_PROFILES_ACTIVE=mail；凭据只从环境变量读取。
+spring:
+  mail:
+    host: ${MAIL_HOST}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: ${MAIL_STARTTLS:true}
+      mail.smtp.starttls.required: ${MAIL_STARTTLS:true}
+      mail.smtp.ssl.enable: ${MAIL_SSL:false}
+      mail.smtp.ssl.checkserveridentity: true
+      mail.smtp.connectiontimeout: 10000
+      mail.smtp.timeout: 10000
+      mail.smtp.writetimeout: 10000
+algohub:
+  email:
+    from: ${MAIL_FROM}

@@ -1,0 +1,46 @@
+{
+  "name": "szpu-algohub-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "prebuild": "node scripts/generate-notices.mjs",
+    "dev": "vite",
+    "build": "vue-tsc -b && vite build",
+    "preview": "vite preview",
+    "type-check": "vue-tsc --noEmit",
+    "test:qoj-script": "node scripts/test-qoj-userscript.mjs",
+    "test:luogu-script": "node scripts/test-luogu-userscript.mjs",
+    "test:leetcode-script": "node scripts/test-leetcode-userscript.mjs",
+    "test:announcement-editor": "node scripts/test-announcement-editor.mjs",
+    "test:friend-actions": "node scripts/test-friend-actions.mjs",
+    "test:list-recovery": "node scripts/test-list-recovery.mjs",
+    "test:sync-view": "node scripts/test-sync-view.mjs",
+    "shots": "node scripts/shots.mjs",
+    "test:browser-sync": "node scripts/build-userscript-runtime.mjs --check && node scripts/test-browser-sync-runtime.mjs && node scripts/test-luogu-userscript.mjs && node scripts/test-qoj-userscript.mjs && node scripts/test-leetcode-userscript.mjs",
+    "test:recent-accepted": "node scripts/test-recent-accepted.mjs"
+  },
+  "dependencies": {
+    "@fontsource/jetbrains-mono": "^5.3.0",
+    "@fontsource/outfit": "^5.3.0",
+    "axios": "^1.7.9",
+    "echarts": "^6.1.0",
+    "element-plus": "^2.9.3",
+    "pinia": "^2.3.1",
+    "vue": "^3.5.13",
+    "vue-router": "^4.5.0"
+  },
+  "devDependencies": {
+    "@iconify-json/lucide": "^1.2.137",
+    "@types/node": "^22.10.7",
+    "@vitejs/plugin-vue": "^5.2.1",
+    "linkedom": "^0.18.14",
+    "puppeteer-core": "^25.12.0",
+    "typescript": "~5.7.3",
+    "unocss": "^66.10.5",
+    "unplugin-auto-import": "^21.1.0",
+    "unplugin-vue-components": "^32.1.0",
+    "vite": "^6.0.7",
+    "vue-tsc": "^2.2.0"
+  }
+}

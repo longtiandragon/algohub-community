@@ -1,0 +1,112 @@
+{
+ "status": "OK",
+ "result": [
+  {
+   "id": 391528818,
+   "contestId": 2266,
+   "creationTimeSeconds": 1790008882,
+   "relativeTimeSeconds": 7582,
+   "problem": {
+    "contestId": 2266,
+    "index": "E",
+    "name": "Prime Destruction",
+    "type": "PROGRAMMING",
+    "tags": [
+     "dp",
+     "math",
+     "number theory"
+    ]
+   },
+   "author": {
+    "contestId": 2266,
+    "participantId": 247010354,
+    "members": [
+     {
+      "handle": "sample_user"
+     }
+    ],
+    "participantType": "CONTESTANT",
+    "ghost": false,
+    "startTimeSeconds": 1790001300
+   },
+   "programmingLanguage": "C++23 (GCC 14-64, msys2)",
+   "verdict": "OK",
+   "testset": "TESTS",
+   "passedTestCount": 34,
+   "timeConsumedMillis": 125,
+   "memoryConsumedBytes": 6451200
+  },
+  {
+   "id": 391517703,
+   "contestId": 2266,
+   "creationTimeSeconds": 1790007115,
+   "relativeTimeSeconds": 5815,
+   "problem": {
+    "contestId": 2266,
+    "index": "D",
+    "name": "Falling Concrete",
+    "type": "PROGRAMMING",
+    "tags": [
+     "constructive algorithms",
+     "data structures",
+     "math",
+     "sortings"
+    ]
+   },
+   "author": {
+    "contestId": 2266,
+    "participantId": 247010354,
+    "members": [
+     {
+      "handle": "sample_user"
+     }
+    ],
+    "participantType": "CONTESTANT",
+    "ghost": false,
+    "startTimeSeconds": 1790001300
+   },
+   "programmingLanguage": "C++23 (GCC 14-64, msys2)",
+   "verdict": "OK",
+   "testset": "TESTS",
+   "passedTestCount": 37,
+   "timeConsumedMillis": 93,
+   "memoryConsumedBytes": 0
+  },
+  {
+   "id": 391517084,
+   "contestId": 2266,
+   "creationTimeSeconds": 1790007028,
+   "relativeTimeSeconds": 5728,
+   "problem": {
+    "contestId": 2266,
+    "index": "D",
+    "name": "Falling Concrete",
+    "type": "PROGRAMMING",
+    "tags": [
+     "constructive algorithms",
+     "data structures",
+     "math",
+     "sortings"
+    ]
+   },
+   "author": {
+    "contestId": 2266,
+    "participantId": 247010354,
+    "members": [
+     {
+      "handle": "sample_user"
+     }
+    ],
+    "participantType": "CONTESTANT",
+    "ghost": false,
+    "startTimeSeconds": 1790001300
+   },
+   "programmingLanguage": "C++23 (GCC 14-64, msys2)",
+   "verdict": "WRONG_ANSWER",
+   "testset": "TESTS",
+   "passedTestCount": 1,
+   "timeConsumedMillis": 31,
+   "memoryConsumedBytes": 0
+  }
+ ]
+}
