@@ -390,6 +390,9 @@ public class BindingRequestService {
         view.put("settingsUrl", switch (Platform.parse(platform)) {
             case LUOGU -> "https://www.luogu.com.cn/user/" + uid;
             case NOWCODER -> "https://ac.nowcoder.com/acm/contest/profile/" + uid;
+            case QOJ -> "https://qoj.ac/user/modify-profile/"
+                    + java.net.URLEncoder.encode((String) row.get("handle"), java.nio.charset.StandardCharsets.UTF_8)
+                    + "/security";
             default -> proof == null ? null : proof.settingsUrl();
         });
         view.put("instructions", instructions(proof));

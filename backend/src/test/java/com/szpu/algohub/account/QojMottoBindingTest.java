@@ -36,6 +36,7 @@ class QojMottoBindingTest {
     @Test void strictMottoBindsOnceAndAllowsPluginWithoutPersonalCookie() {
         assertThatThrownBy(()->accounts.bind(user,"QOJ",handle,null)).isInstanceOf(ApiException.class);
         var request=requests.create(user,"QOJ",handle);
+        assertThat(request.get("settingsUrl")).isEqualTo("https://qoj.ac/user/modify-profile/"+handle+"/security");
         long id=((Number)request.get("id")).longValue();
         String token=(String)request.get("token");
         motto("prefix "+token);
