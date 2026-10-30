@@ -1,0 +1,35 @@
+[Unit]
+Description=AlgoHub QOJ isolated manual browser verification
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=2
+
+[Service]
+Type=simple
+User=qoj-browser
+Group=qoj-browser
+Environment=HOME=/var/lib/algohub-qoj-browser
+WorkingDirectory=/var/lib/algohub-qoj-browser
+StateDirectory=algohub-qoj-browser
+StateDirectoryMode=0700
+RuntimeDirectory=algohub-qoj-browser
+RuntimeDirectoryMode=0700
+ExecStart=/opt/algohub-qoj-browser/start.sh
+Restart=no
+KillMode=control-group
+TimeoutStopSec=20
+UMask=0077
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+InaccessiblePaths=/etc/algohub /var/backups/algohub /opt/algohub
+MemoryHigh=900M
+MemoryMax=1200M
+MemorySwapMax=256M
+CPUQuota=100%
+TasksMax=256
+LimitCORE=0
+
+[Install]
+WantedBy=multi-user.target
