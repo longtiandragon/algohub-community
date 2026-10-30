@@ -61,9 +61,10 @@ async function copyToken() {
         <span class="step-no num" aria-hidden="true">2</span>
         <div class="min-w-0 flex flex-1 flex-col items-start gap-2">
           <span class="text-[14.5px] text-ink leading-relaxed">
-            打开 <strong>{{ request.location ?? `${platformName(request.platform)} 的公开资料` }}</strong>，把验证串粘贴到末尾，保存。
+            打开 <strong>{{ request.location ?? `${platformName(request.platform)} 的公开资料` }}</strong>，{{ request.platform === 'QOJ' ? '将 Motto 完整替换为验证串，保存。' : '把验证串粘贴到末尾，保存。' }}
           </span>
           <span v-if="request.note" class="text-[13px] text-muted leading-relaxed">{{ request.note }}</span>
+          <span v-if="request.platform === 'QOJ'" class="text-[13px] text-warning-ink leading-relaxed">记得在 QOJ 设置页填写当前密码后才能保存 Motto；密码只填写在 QOJ 网站，无需提交给 AlgoHub。</span>
           <span class="text-[13px] text-muted leading-relaxed">只用于核验，通过后可以删掉验证串、改回原样。</span>
           <!-- 有设置页地址的平台直接打开设置页，省掉「右上角 → 设置」几步 -->
           <a v-if="request.settingsUrl || homeUrl" :href="request.settingsUrl || homeUrl" target="_blank" rel="noopener noreferrer" class="open-link" data-test="open-platform">
