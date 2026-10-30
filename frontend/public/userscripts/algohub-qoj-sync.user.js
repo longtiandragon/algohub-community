@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AlgoHub QOJ AC 时间同步
 // @namespace    https://www.algohub.top/
-// @version      1.1.0
+// @version      1.2.0
 // @description  在本人QOJ浏览器内同步 AC 时间，可选择每 1-12 小时自动运行，不上传 Cookie。
 // @match        https://qoj.ac/*
 // @grant        GM_xmlhttpRequest
@@ -221,7 +221,7 @@
       if (cells.length !== headers.length) throw new Error('QOJ 提交字段不完整')
       const cell = name => cells[headers.indexOf(name)]
       const score = cell('Result').querySelector('[data-score][data-full]')
-      if (cell('Submitter').querySelector('.uoj-username')?.textContent.trim() !== uid || !score || Number(score.dataset.score) !== 100 || Number(score.dataset.full) !== 100)
+      if (cell('Submitter').querySelector('.uoj-username')?.textContent.trim() !== uid || !score || !/^AC(?:\s*[✓✔])?$/.test(score.textContent.trim()) || Number(score.dataset.score) !== 100 || Number(score.dataset.full) !== 100)
         throw new Error('QOJ 记录账号或 AC 状态不符')
       const id = /^\/submission\/([1-9][0-9]*)$/.exec(cell('ID').querySelector('a')?.getAttribute('href'))?.[1]
       const problem = cell('Problem').querySelector('a')
@@ -311,9 +311,10 @@
         const links = heading?.nextElementSibling?.querySelectorAll('a[href]')
         if (count == null || !links) throw new Error('无法核对 QOJ 主页通过题单，本轮未上传')
         const profileIds = new Set([...links].map(a => /^\/problem\/([0-9]+)$/.exec(a.getAttribute('href'))?.[1]))
-        const solvedIds = new Set(records.map(r => r.pid))
-        if (profileIds.has(undefined) || profileIds.size !== Number(count) || profileIds.size !== solvedIds.size || [...profileIds].some(id => !solvedIds.has(id)))
-          throw new Error('AC 记录与 QOJ 主页题单不一致，本轮未上传，请稍后重试')
+        // Homepage totals and the signed-in user's submissions have different visibility scopes.
+        // Validate each source independently; never invent missing records or dates.
+        if (profileIds.has(undefined) || profileIds.size !== Number(count))
+          throw new Error('QOJ 主页题单解析不完整，本轮未上传，请稍后重试')
         const pages = []
         for(let offset=0; offset < records.length || offset===0; offset+=500)
           pages.push({page:offset/500+1,total:records.length,perPage:500,rows:records.slice(offset,offset+500)})
@@ -362,7 +363,7 @@
             ? `最新一条：${new Date(newest * 1000).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false })}。`
             : 'QOJ 当前公开通过题单和 AC 列表均为空。')
           button.textContent = 'AlgoHub 本轮已上传'
-          note.textContent = summary + ' 已核对主页通过题单；发现漏记可稍后重新检查。'
+          note.textContent = summary + ' 仅包含当前账号可见记录，不代表全部历史；发现漏记可稍后重新检查。'
           GM_setValue(successKey, Date.now())
           if (!automatic) {
             if (result.autoEnabled) GM_setValue(autoKey, { uid, token: ticket })

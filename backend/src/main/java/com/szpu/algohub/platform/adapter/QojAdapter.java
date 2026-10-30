@@ -28,9 +28,30 @@ public class QojAdapter implements PlatformAdapter {
     private static final String PROFILE = "https://qoj.ac/user/profile/";
 
     private final PlatformHttpClient http;
+    private final QojServerClient server;
 
     public QojAdapter(PlatformHttpClient http) {
+        this(http, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public QojAdapter(PlatformHttpClient http, QojServerClient server) {
         this.http = http;
+        this.server = server;
+    }
+
+    private boolean serverEnabled() { return server != null && server.enabled(); }
+
+    @Override
+    public com.szpu.algohub.platform.PlatformDtos.OwnershipProof ownershipProof() {
+        return serverEnabled() ? new com.szpu.algohub.platform.PlatformDtos.OwnershipProof("motto",
+                "QOJ 个人设置中的 Motto", "将验证串完整填写为 Motto；验证成功后可以移除", 30,
+                "https://qoj.ac/user/modify-profile") : null;
+    }
+
+    @Override
+    public String partialHistoryNote() {
+        return serverEnabled() ? "服务器更新主页累计数；提交记录由本人浏览器插件同步，权限受限或隐藏记录可能缺失，不保证完整历史" : null;
     }
 
     @Override
@@ -40,6 +61,9 @@ public class QojAdapter implements PlatformAdapter {
 
     @Override
     public PlatformCapability capability() {
+        if (serverEnabled()) return new PlatformCapability(Platform.QOJ, true, false, true, false,
+                "NONE", "NONE", false,
+                "填写用户名并完成 Motto 归属验证；服务器读取累计通过数，插件同步本人可见的提交记录。验证后按平台规则参与统计与排行，无需提供 Cookie。");
         return new PlatformCapability(Platform.QOJ, false, true, false, false,
                 "NONE", "NONE", false,
                 "填写用户名后连接浏览器插件，在已登录 QOJ 的浏览器里同步 AC 记录，无需复制 Cookie；未验证归属的账号仅用于个人统计。");
@@ -47,6 +71,12 @@ public class QojAdapter implements PlatformAdapter {
 
     @Override
     public ResolvedIdentity resolveIdentity(String input, String credential) {
+        if (serverEnabled()) {
+            String handle = QojServerClient.handle(input);
+            var data = server.profile(handle);
+            if (!data.path("motto").isTextual()) throw QojServerClient.invalid();
+            return new ResolvedIdentity(handle, handle, handle, Map.of("motto", data.get("motto").asText()));
+        }
         if (!StringUtils.hasText(credential)) {
             throw new ApiException(ErrorKind.CREDENTIAL_INVALID, "QOJ 需要先提供本人登录态才能验证账号");
         }
@@ -60,6 +90,19 @@ public class QojAdapter implements PlatformAdapter {
 
     @Override
     public TotalsSnapshot fetchTotals(SyncContext context) {
+        if (serverEnabled()) {
+            var data = server.profile(QojServerClient.handle(context.handle()));
+            if (!data.path("total").isIntegralNumber() || !data.path("total").canConvertToInt()
+                    || data.path("total").asInt() < 0 || !data.path("problemIds").isArray())
+                throw QojServerClient.invalid();
+            var ids = new java.util.HashSet<String>();
+            for (var id : data.get("problemIds")) {
+                if (!id.isTextual() || !id.asText().matches("[0-9]+") || !ids.add(id.asText()))
+                    throw QojServerClient.invalid();
+            }
+            if (ids.size() != data.get("total").asInt()) throw QojServerClient.invalid();
+            return new TotalsSnapshot(ids.size(), null, Map.of(), null);
+        }
         Document doc = load(context.handle(), context.credential());
         Element solvedList = doc.selectFirst(".uoj-ac-problems-list, #solved-problems, .uoj-solved-problems");
         if (solvedList == null) {
@@ -100,6 +143,13 @@ public class QojAdapter implements PlatformAdapter {
 
     @Override
     public com.szpu.algohub.platform.PlatformDtos.SubmissionPage fetchSubmissions(SyncContext context) {
+        if (serverEnabled()) {
+            int page;
+            try { page = context.cursor() == null ? 1 : Integer.parseInt(context.cursor()); }
+            catch (NumberFormatException e) { throw ApiException.validation("QOJ 分页游标无效"); }
+            String handle = QojServerClient.handle(context.handle());
+            return QojRecordParser.parseCollected(server.submissions(handle, page), handle, page);
+        }
         if (!StringUtils.hasText(context.credential()))
             throw new ApiException(ErrorKind.CREDENTIAL_INVALID, "QOJ AC 历史需要本人登录态");
         int page;

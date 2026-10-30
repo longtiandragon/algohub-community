@@ -1,0 +1,26 @@
+[Unit]
+Description=AlgoHub private QOJ collector
+After=algohub-qoj-browser.service
+Requires=algohub-qoj-browser.service
+
+[Service]
+User=qoj-browser
+Group=qoj-browser
+WorkingDirectory=/opt/algohub-qoj-collector
+Environment=QOJ_COLLECTOR_TOKEN_FILE=/etc/algohub-qoj-collector/token
+ExecStart=/opt/algohub-qoj-collector/venv/bin/python collector.py
+Restart=on-failure
+RestartSec=30
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+InaccessiblePaths=/etc/algohub /var/backups/algohub /opt/algohub
+MemoryMax=350M
+CPUQuota=50%
+TasksMax=64
+LimitCORE=0
+
+[Install]
+WantedBy=multi-user.target

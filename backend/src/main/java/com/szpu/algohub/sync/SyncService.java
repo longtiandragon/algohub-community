@@ -521,7 +521,7 @@ public class SyncService {
                         snapshot.solvedProblems().size(), "只有通过关系，没有通过时间");
             }
             dailyStatMapper.deleteSnapshotBased(account.getId());
-            dailyStatMapper.rebuildSnapshotDelta(account.getId());
+            if (platform != Platform.QOJ) dailyStatMapper.rebuildSnapshotDelta(account.getId());
             snapshot.dailyActivity().forEach((date, value) -> dailyStatMapper.upsertActivity(account.getId(), date, value));
             // 公开快照不改变已经完成的历史回填，也不推进或清空续传游标。
             boolean historyComplete = account.isHistoryComplete() || (platform == Platform.LUOGU

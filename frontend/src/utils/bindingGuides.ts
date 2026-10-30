@@ -20,5 +20,5 @@ export const bindingGuides: Record<string, BindingGuide> = {
   LEETCODE_CN: { label: '个人主页标识（userSlug）', short: '力扣主页标识', hint: '中文界面', example: '例如 example-user', help: '填写力扣中国站个人主页 /u/ 后的标识，不是中文昵称、邮箱或手机号。' },
   LUOGU: { label: '洛谷用户名', short: '洛谷用户名', hint: '中文题目多', example: '例如 example', help: '当前绑定适配器按用户名搜索，请填写完整洛谷用户名；UID 会在解析成功后展示。练习页文件导出是另一项功能。' },
   HDU: { label: 'HDU 登录用户名', short: '杭电用户名', example: '例如 example', help: '填写杭电 OJ 登录用户名，即个人统计页 user= 后的值；不是显示昵称。' },
-  QOJ: { label: 'QOJ 用户名', short: 'QOJ 用户名', example: '例如 example', help: '填写个人主页 /user/profile/ 后的用户名，再连接浏览器插件同步。不需要填写 Cookie 或密码；未验证归属的记录仅用于个人统计。' },
+  QOJ: { label: 'QOJ 用户名', short: 'QOJ 用户名', example: '例如 example', help: '填写个人主页 /user/profile/ 后的用户名，完成 Motto 验证后连接插件同步本人可见记录。不需要填写 Cookie 或密码；验证后参与统计与排行。' },
 }

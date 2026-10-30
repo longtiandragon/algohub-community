@@ -156,7 +156,7 @@ public class AccountService {
      */
     public PlatformAccount bind(Long userId, String platformName, String input, String credential) {
         Platform platform = Platform.parse(platformName);
-        if (platform == Platform.QOJ) return bindQojBrowser(userId, input);
+        if (platform == Platform.QOJ && registry.proofOf(platform) == null) return bindQojBrowser(userId, input);
         if (registry.proofOf(platform) != null) {
             throw ApiException.validation(platform.getDisplayName()
                     + " 支持公开资料验证：请先查询账号并完成归属验证，验证通过后自动绑定并同步");

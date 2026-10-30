@@ -21,6 +21,8 @@ import com.szpu.algohub.sync.SyncService;
 /** 用户在QOJ浏览器内主动读取本人 AC 列表；站点只收精简字段，不接收会话或页面响应。 */
 @Service
 public class QojBrowserImportService {
+    @org.springframework.beans.factory.annotation.Value("${algohub.qoj.server-enabled:false}")
+    private boolean requireMottoVerification;
     private static final SecureRandom RANDOM = new SecureRandom();
     public record BrowserRecord(String id, String uid, String pid, String title,
                                 Integer difficulty, Long submitTime, String language) {}
@@ -45,6 +47,8 @@ public class QojBrowserImportService {
 
     private PlatformAccount owned(Long userId, Long accountId) {
         PlatformAccount account = accounts.findById(accountId);
+        if (requireMottoVerification && account != null && !"VERIFIED".equals(account.getOwnershipStatus()))
+            throw ApiException.forbidden("请先完成 QOJ Motto 归属验证，再连接插件同步");
         if (account == null || !userId.equals(account.getUserId())
                 || !"QOJ".equals(account.getPlatform())
                 || !("VERIFIED".equals(account.getOwnershipStatus())

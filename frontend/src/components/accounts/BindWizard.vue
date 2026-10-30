@@ -51,7 +51,7 @@ const guide = computed(() => bindingGuides[platform.value] ?? { label: '账号�
 const name = computed(() => capability.value?.displayName ?? platformName(platform.value))
 /** verify 能验证归属；watch 只能个人关注、能查到账号；credential 要登录态、查不了公开资料。还没选平台时按最常见的 verify 显示五步 */
 const flow = computed<'verify' | 'watch' | 'credential' | 'browser'>(() => {
-  if (platform.value === 'QOJ') return 'browser'
+  if (platform.value === 'QOJ' && !capability.value?.ownershipProof) return 'browser'
   const c = capability.value
   if (!c || c.ownershipProof) return 'verify'
   return c.requiresCredential ? 'credential' : 'watch'
@@ -495,7 +495,7 @@ defineExpose({ open, resume })
         <h3 class="m-0 text-lg text-ink font-bold">{{ done.title }}</h3>
         <p class="m-0 text-sm text-body">{{ name }} · <span class="mono">{{ doneHandle }}</span></p>
         <p class="m-0 max-w-[460px] text-[13.5px] text-muted leading-relaxed">{{ done.text }}</p>
-        <RouterLink v-if="flow === 'browser'" to="/qoj-sync" class="text-brand-600 font-semibold" @click="visible = false">连接 QOJ 插件 →</RouterLink>
+        <RouterLink v-if="platform === 'QOJ'" to="/qoj-sync" class="text-brand-600 font-semibold" @click="visible = false">连接 QOJ 插件 →</RouterLink>
       </div>
     </div>
 

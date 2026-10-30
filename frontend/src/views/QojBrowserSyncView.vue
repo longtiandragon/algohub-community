@@ -24,7 +24,7 @@ const copied = ref(false)
 let generation = 0
 onBeforeUnmount(() => { generation++ })
 const scriptUrl = '/userscripts/algohub-qoj-sync.user.js'
-const eligibleAccounts = computed(() => accounts.value.filter((account) => account.platform === 'QOJ' && (account.ownershipStatus === 'VERIFIED' || (account.authMode === 'BROWSER' && !account.ownershipNote && ['UNVERIFIED', 'RESOLVED'].includes(account.ownershipStatus)))))
+const eligibleAccounts = computed(() => accounts.value.filter((account) => account.platform === 'QOJ' && account.ownershipStatus === 'VERIFIED'))
 const current = computed(() => eligibleAccounts.value.find((account) => account.id === selected.value) ?? null)
 
 onMounted(async () => {
@@ -121,7 +121,7 @@ const beijing = (value: string) => new Date(value).toLocaleString('zh-CN', { tim
       <span class="i-lucide-info mt-0.5 shrink-0 text-lg text-info-ink" aria-hidden="true" />
       <p class="m-0">
         QOJ通过记录由你已登录的浏览器同步，服务器不会读取QOJ Cookie，也无法独立核验上传内容。同步到的 AC 题目计入通过题数，
-        同一道题只计一次。未验证归属的账号仅用于个人统计，不参与公开排行与动态。
+        同一道题只计一次。完成服务端 Motto 归属验证后，记录按与洛谷相同的规则参与排行、热力图和公开动态，并保留浏览器同步来源标记。
         同步完成不表示已独立核验完整历史，公开展示仍遵守档案隐私设置。
       </p>
     </div>
@@ -130,7 +130,7 @@ const beijing = (value: string) => new Date(value).toLocaleString('zh-CN', { tim
       v-if="loaded && !eligibleAccounts.length"
       icon="i-lucide-link"
       title="还没有添加 QOJ 账号"
-      description="先在平台账号里填写 QOJ 用户名，再回来连接插件，无需 Cookie。"
+      description="先在平台账号里填写 QOJ 用户名并完成 Motto 验证，再回来连接插件，无需 Cookie。"
       action="去平台账号"
       to="/accounts"
       class="bg-surface"

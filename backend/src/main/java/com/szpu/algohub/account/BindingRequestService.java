@@ -223,7 +223,7 @@ public class BindingRequestService {
                         + "公开资料里的这一项，请稍后再核验");
             }
             String text = identity.extra().get(proof.field());
-            if (!containsToken(text, token)) {
+            if (!(platform == Platform.QOJ ? token.equals(text == null ? null : text.trim()) : containsToken(text, token))) {
                 throw ApiException.validation("公开资料中还没有完整的验证串"
                         + (proof.note() == null ? "" : "；" + proof.note()));
             }
@@ -278,6 +278,9 @@ public class BindingRequestService {
         }
 
         PlatformAccount account = accounts.findMineByUid(userId, platform.name(), uid);
+        if (platform == Platform.QOJ && account != null && !"VERIFIED".equals(account.getOwnershipStatus())) {
+            throw ApiException.conflict("旧版 QOJ 绑定需要先解除，再重新验证；旧插件数据不会自动升级归属");
+        }
         if (account == null) {
             quota.requireSlot(userId, platform.name(), uid, true);
             PlatformAccount sameHandle = findMineByHandle(userId, platform.name(), identity.handle());
@@ -397,7 +400,7 @@ public class BindingRequestService {
         if (proof == null) {
             return "该平台暂不支持公开资料验证。";
         }
-        return "把验证串完整粘贴到「" + proof.location() + "」末尾并保存，然后点核验。"
+        return ("motto".equals(proof.field()) ? "将「" + proof.location() + "」暂时完整替换为验证串并保存，然后点核验。" : "把验证串完整粘贴到「" + proof.location() + "」末尾并保存，然后点核验。")
                 + (proof.note() == null ? "" : proof.note())
                 + "有效期 " + proof.validMinutes() + " 分钟，最多核验 " + MAX_ATTEMPTS
                 + " 次，重复获取不会延长；核验成功后可以删掉验证串。";

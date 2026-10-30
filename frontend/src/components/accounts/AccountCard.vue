@@ -95,7 +95,7 @@ function onCommand(command: string) {
     </div>
 
     <div v-if="account.platform === 'QOJ' && !account.ownershipNote && account.ownershipStatus !== 'MISMATCH'" class="rounded-control bg-info-soft px-3 py-2.5 text-[12.5px] leading-relaxed">
-      在已登录 QOJ 的浏览器里同步 AC 记录，无需为浏览器同步复制 Cookie。
+      完成 Motto 验证后，通过插件同步本人可见的 AC 记录；服务器更新主页累计通过数，无需提供个人 Cookie。
       <RouterLink to="/qoj-sync" class="text-brand-600 font-semibold">浏览器同步与自动同步设置 →</RouterLink>
     </div>
     <div v-if="account.platform === 'LEETCODE_CN' && account.ownershipStatus === 'VERIFIED'" class="rounded-control bg-info-soft px-3 py-2.5 text-[12.5px] leading-relaxed">
@@ -115,7 +115,7 @@ function onCommand(command: string) {
 
     <div class="flex items-center gap-2 max-md:(border-t border-t-solid border-line-soft pt-2.5)">
       <RouterLink v-if="account.platform === 'QOJ'" to="/qoj-sync" class="text-brand-600 font-semibold">插件同步 →</RouterLink>
-      <el-button v-else :disabled="active" @click="emit('sync')">
+      <el-button :disabled="active" @click="emit('sync')">
         <span class="i-lucide-refresh-cw mr-1.5 text-sm" aria-hidden="true" />{{ active ? '同步中' : account.platform === 'LUOGU' ? '更新公开题单' : '同步' }}
       </el-button>
       <RouterLink to="/profile" class="px-1.5 text-[13.5px] leading-8">查看数据</RouterLink>
