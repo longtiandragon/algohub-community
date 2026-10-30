@@ -140,8 +140,11 @@ class RealResponseSamplesTest {
     // ---- AtCoder（kenkoooo） ----
 
     private SubmissionPage atcoder(String file) {
-        when(http.get(eq(Platform.ATCODER), endsWith("/problems.json"))).thenReturn("[]");
-        when(http.get(eq(Platform.ATCODER), endsWith("/problem-models.json"))).thenReturn("{}");
+        // 目录本身有效，但允许新题尚未收录、尚未评级；空目录/异常模型另有失败测试。
+        when(http.get(eq(Platform.ATCODER), endsWith("/problems.json")))
+                .thenReturn("[{\"id\":\"dp_a\",\"title\":\"Frog 1\",\"contest_id\":\"dp\"}]");
+        when(http.get(eq(Platform.ATCODER), endsWith("/problem-models.json")))
+                .thenReturn("{\"dp_a\":{\"difficulty\":100}}");
         when(http.get(eq(Platform.ATCODER), contains("user/submissions"))).thenReturn(sample(file));
         return new AtCoderAdapter(http).fetchSubmissions(context("sample_user", "sample_user", null));
     }
@@ -150,6 +153,9 @@ class RealResponseSamplesTest {
     void atcoderNormalEmptyAndChangedFields() {
         SubmissionPage normal = atcoder("atcoder/submissions-normal.json");
         assertThat(normal.submissions()).hasSize(4);
+        assertThat(normal.submissions().getFirst().problem().difficultyLabel()).isEqualTo("AtCoder Problems 估计 100");
+        assertThat(normal.submissions().get(1).problem().title()).isEqualTo("dp_b");
+        assertThat(normal.submissions().get(1).problem().difficultyLabel()).isNull();
         assertThat(normal.submissions()).allSatisfy(s -> assertThat(s.submittedAt()).isAfter(Instant.parse("2020-01-01T00:00:00Z")));
         assertThat(normal.reachedHistoryStart()).isTrue();
 
