@@ -1,4 +1,4 @@
-/** 中性文字角标由本项目绘制，仅用于平台识别，不使用第三方 Logo 图片，不表示官方合作。 */
+/** 优先显示本地平台 Logo，来源与品牌声明见 THIRD_PARTY_NOTICES.md；无图时使用文字角标。不向第三方发送图片请求。 */
 export interface PlatformBrand {
   /** 角标里的字，1～2 个字符最好看 */
   mark: string
@@ -43,7 +43,7 @@ export function platformName(platform: string | null | undefined): string {
 
 /**
  * 有本地图标的平台。文件在 `frontend/public/platform-logos/`，
- * 名字是平台标识小写、下划线换成连字符（LEETCODE_CN → leetcode-cn.svg）。
+ * 名字是平台标识小写、下划线换成连字符（LEETCODE_CN → leetcode-cn.png）。
  * 新增平台时把图标放进去并在这里登记；没登记的就显示字标，不会留破图。
  */
 const WITH_LOGO = new Set([
@@ -61,5 +61,5 @@ export function platformLogoUrl(platform: string | null | undefined): string | n
   if (!platform) return null
   const key = platform.toUpperCase()
   if (!WITH_LOGO.has(key)) return null
-  return `/platform-logos/${key.toLowerCase().replace(/_/g, '-')}.svg`
+  return `/platform-logos/${key.toLowerCase().replace(/_/g, '-')}.png`
 }
