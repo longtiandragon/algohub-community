@@ -1,6 +1,7 @@
 # 平台响应样本（已脱敏）
 
-2026-09-23 用与适配器相同的地址和请求头匿名抓取，裁剪到几条记录后脱敏存放。由
+2026-09-23 用与适配器相同的地址和请求头匿名抓取，裁剪到几条记录后脱敏存放。2026-10-31
+根据实际零提交主页补入牛客 `practice-zero.html` 的空结果占位行，移除图片与账号信息。由
 `RealResponseSamplesTest`（适配器解析）与 `PlatformHttpClientTest`（状态码、重定向）离线回放，不连外网。
 
 **来源**一栏：
@@ -33,7 +34,7 @@
 | `nowcoder/practice-normal.html` | 正常，第 1 页，还有下一页 | 真实 | 3 条，游标推进到第 2 页 |
 | `nowcoder/practice-beyond-last-page.html` | 重复分页：请求第 999 页，源站返回最后一页的内容 | 真实 | `PARSE_ERROR`（分页未推进），不重复计数 |
 | `nowcoder/practice-field-changed.html` | 字段变化：一行少一列 | 改写 | `PARSE_ERROR` |
-| `nowcoder/practice-zero.html` | 零题 | 改写 | 0 条、0 题 |
+| `nowcoder/practice-zero.html` | 零题，包含真实的跨列空结果占位行 | 改写统计，空态来自真实零提交主页 | 0 条、0 题 |
 | `nowcoder/profile-normal.html` | 归属验证：公开主页头像旁的个人简介（`.coder-info-main > .coder-brief`） | 真实（裁剪、脱敏） | 昵称与简介原文 |
 | `nowcoder/profile-empty-brief.html` | 归属验证：没写简介 | 改写 | 简介为空串（提示还没有验证串） |
 | `nowcoder/profile-field-changed.html` | 归属验证：简介区改版 | 改写 | 不给简介（核验提示暂时读不到、不扣次数） |

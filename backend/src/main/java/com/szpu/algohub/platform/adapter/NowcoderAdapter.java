@@ -71,8 +71,15 @@ public class NowcoderAdapter implements PlatformAdapter {
         if (doc.select(".my-state-item").isEmpty() || doc.select("table tbody").isEmpty())
             throw ProtectionPage.orElse(Platform.NOWCODER, html,
                     new ApiException(ErrorKind.PARSE_ERROR, "牛客未返回公开提交列表，保留原有记录"));
+        var rows = doc.select("table tbody tr");
+        Element next = doc.selectFirst(".js-next-pager:not(.disabled) a[data-page]");
+        // 零提交主页会用跨列占位行代替提交记录；只认已核实的空态与明确的零提交计数。
+        if (rows.size() == 1 && next == null && isZeroSubmissionPlaceholder(doc, rows.getFirst())) {
+            if (ProtectionPage.looksLike(html)) throw ProtectionPage.error(Platform.NOWCODER);
+            return new com.szpu.algohub.platform.PlatformDtos.SubmissionPage(List.of(), null, false, true);
+        }
         var submissions = new java.util.ArrayList<com.szpu.algohub.platform.PlatformDtos.FetchedSubmission>();
-        for (Element row : doc.select("table tbody tr")) {
+        for (Element row : rows) {
             var cells = row.select("td");
             if (cells.size() != 9) throw new ApiException(ErrorKind.PARSE_ERROR, "牛客提交列表字段变化");
             Element problem = cells.get(1).selectFirst("a[href^=/acm/problem/]");
@@ -90,11 +97,24 @@ public class NowcoderAdapter implements PlatformAdapter {
             submissions.add(new com.szpu.algohub.platform.PlatformDtos.FetchedSubmission(run.text(), fetched,
                     verdict, "答案正确".equals(verdict), time, "EXACT", cells.get(7).text(), null));
         }
-        Element next = doc.selectFirst(".js-next-pager:not(.disabled) a[data-page]");
         boolean more = next != null;
         if (more && !String.valueOf(page+1).equals(next.attr("data-page")))
             throw new ApiException(ErrorKind.PARSE_ERROR, "牛客分页未推进");
         return new com.szpu.algohub.platform.PlatformDtos.SubmissionPage(submissions, more ? String.valueOf(page+1) : null, more, !more);
+    }
+
+    private static boolean isZeroSubmissionPlaceholder(Document doc, Element row) {
+        var cells = row.select("td");
+        if (cells.size() != 1 || !"1024".equals(cells.getFirst().attr("colspan"))) return false;
+        Element message = cells.getFirst().selectFirst(".empty-tip-mod p");
+        if (message == null || !message.text().startsWith("没有找到你想要的内容呢")) return false;
+        for (Element item : doc.select(".my-state-item")) {
+            Element label = item.selectFirst("span");
+            Element count = item.selectFirst(".state-num");
+            if (label != null && count != null && "次提交".equals(label.text()) && "0".equals(count.text()))
+                return true;
+        }
+        return false;
     }
 
     @Override

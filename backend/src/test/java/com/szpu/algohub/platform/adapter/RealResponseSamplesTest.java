@@ -264,6 +264,42 @@ class RealResponseSamplesTest {
                 ErrorKind.RATE_LIMITED, "防护验证页");
     }
 
+    @Test
+    void nowcoderStillAcceptsAnEmptyTableWithoutAPlaceholder() {
+        String html = sample("nowcoder/practice-zero.html").replaceAll("(?s)<tbody>.*?</tbody>", "<tbody></tbody>");
+        SubmissionPage page = NowcoderAdapter.parseSubmissions(html, 1, "100000001");
+        assertThat(page.submissions()).isEmpty();
+        assertThat(page.hasMore()).isFalse();
+        assertThat(page.nextCursor()).isNull();
+        assertThat(page.reachedHistoryStart()).isTrue();
+    }
+
+    @Test
+    void nowcoderPlaceholderRequiresAnExplicitZeroCountAndNoNextPage() {
+        String html = sample("nowcoder/practice-zero.html");
+        fails(() -> NowcoderAdapter.parseSubmissions(html.replace("<div class=\"state-num\">0</div>",
+                        "<div class=\"state-num\">1</div>"), 1, "100000001"),
+                ErrorKind.PARSE_ERROR, "字段变化");
+        fails(() -> NowcoderAdapter.parseSubmissions(html.replace("次提交", "未知统计"), 1, "100000001"),
+                ErrorKind.PARSE_ERROR, "字段变化");
+        fails(() -> NowcoderAdapter.parseSubmissions(html.replace("</body>",
+                        "<li class=\"js-next-pager\"><a data-page=\"2\">下一页</a></li></body>"), 1, "100000001"),
+                ErrorKind.PARSE_ERROR, "字段变化");
+    }
+
+    @Test
+    void nowcoderDoesNotTreatOtherMessagesOrMixedRowsAsEmptyHistory() {
+        String html = sample("nowcoder/practice-zero.html");
+        fails(() -> NowcoderAdapter.parseSubmissions(html.replace("没有找到你想要的内容呢", "请登录后查看"), 1, "100000001"),
+                ErrorKind.PARSE_ERROR, "字段变化");
+        fails(() -> NowcoderAdapter.parseSubmissions(html.replace("colspan=\"1024\"", ""), 1, "100000001"),
+                ErrorKind.PARSE_ERROR, "字段变化");
+        fails(() -> NowcoderAdapter.parseSubmissions(html.replace("</tbody>", "<tr><td>未知记录</td></tr></tbody>"), 1, "100000001"),
+                ErrorKind.PARSE_ERROR, "字段变化");
+        fails(() -> NowcoderAdapter.parseSubmissions(html.replace("</body>", "<div>安全验证</div></body>"), 1, "100000001"),
+                ErrorKind.RATE_LIMITED, "防护验证页");
+    }
+
     /** 归属验证读公开主页头像旁的个人简介；简介为空、用户不存在、页面改版要分别处理 */
     @Test
     void nowcoderProfileExposesTheBriefUsedForOwnershipProof() {
