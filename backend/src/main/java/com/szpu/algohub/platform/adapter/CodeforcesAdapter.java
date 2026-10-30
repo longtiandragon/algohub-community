@@ -235,7 +235,8 @@ public class CodeforcesAdapter implements PlatformAdapter {
 
         List<String> tags = new ArrayList<>();
         p.path("tags").forEach(t -> tags.add(t.asText()));
-        String rating = p.has("rating") ? String.valueOf(p.path("rating").asInt()) : null;
+        String rating = p.path("rating").isIntegralNumber() && p.path("rating").canConvertToInt()
+                ? String.valueOf(p.path("rating").asInt()) : null;
 
         FetchedProblem problem = new FetchedProblem(key, p.path("name").asText(key), url,
                 rating, rating == null ? null : "CF " + rating, "OFFICIAL", tags, true);
@@ -255,6 +256,9 @@ public class CodeforcesAdapter implements PlatformAdapter {
         JsonNode root = readJson(API + "problemset.problems");
         JsonNode problems = root.path("result").path("problems");
         JsonNode statistics = root.path("result").path("problemStatistics");
+        if (!problems.isArray() || problems.isEmpty() || !statistics.isArray()) {
+            throw new ApiException(ErrorKind.PARSE_ERROR, "Codeforces 题库为空或字段变化");
+        }
 
         java.util.Map<String, Integer> solvedCounts = new java.util.HashMap<>();
         for (JsonNode stat : statistics) {
@@ -272,7 +276,8 @@ public class CodeforcesAdapter implements PlatformAdapter {
             String key = contestId + index;
             List<String> tags = new ArrayList<>();
             node.path("tags").forEach(t -> tags.add(t.asText()));
-            Integer rating = node.has("rating") ? node.path("rating").asInt() : null;
+            Integer rating = node.path("rating").isIntegralNumber() && node.path("rating").canConvertToInt()
+                    ? node.path("rating").asInt() : null;
             FetchedProblem problem = new FetchedProblem(key, node.path("name").asText(key),
                     "https://codeforces.com/contest/" + contestId + "/problem/" + index,
                     rating == null ? null : String.valueOf(rating),

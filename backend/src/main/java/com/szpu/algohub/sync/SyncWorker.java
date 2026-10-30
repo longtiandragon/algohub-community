@@ -123,6 +123,20 @@ public class SyncWorker {
         syncService.enqueueContestRefresh();
     }
 
+    /** 题目评级不能依赖账号的提交回查窗口，老题后出分或调分也要覆盖。 */
+    @Scheduled(fixedDelay = 5 * 60 * 1000, initialDelay = 60 * 1000)
+    public void scheduleCatalogRefresh() {
+        long minutes = properties.getSync().getCatalogIntervalMinutes();
+        if (minutes <= 0) return;
+        Instant dueBefore = Instant.now().minus(Duration.ofMinutes(minutes));
+        for (String platform : java.util.List.of("CODEFORCES", "ATCODER", "NOWCODER")) {
+            Instant latest = taskMapper.latestCatalogAttempt(platform);
+            if (latest == null || !latest.isAfter(dueBefore)) {
+                syncService.enqueueCatalogRefresh(platform);
+            }
+        }
+    }
+
     @PreDestroy
     public void shutdown() {
         executor.shutdownNow();

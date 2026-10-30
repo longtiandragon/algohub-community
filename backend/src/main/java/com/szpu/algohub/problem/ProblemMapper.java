@@ -20,16 +20,18 @@ public interface ProblemMapper {
      */
     @Insert("""
             insert into problem (platform, problem_key, title, url, difficulty_raw, difficulty_label,
-                                 difficulty_source, tags_complete, updated_at)
+                                 difficulty_source, difficulty_value, tags_complete, updated_at)
             values (#{platform}, #{problemKey}, #{title,jdbcType=VARCHAR}, #{url,jdbcType=VARCHAR},
                     #{difficultyRaw,jdbcType=VARCHAR}, #{difficultyLabel,jdbcType=VARCHAR},
-                    #{difficultySource,jdbcType=VARCHAR}, #{tagsComplete}, now())
+                    #{difficultySource,jdbcType=VARCHAR}, #{difficultyValue,jdbcType=INTEGER}, #{tagsComplete}, now())
             on conflict (platform, problem_key) do update
                set title = coalesce(excluded.title, problem.title),
                    url = coalesce(excluded.url, problem.url),
                    difficulty_raw = coalesce(excluded.difficulty_raw, problem.difficulty_raw),
                    difficulty_label = coalesce(excluded.difficulty_label, problem.difficulty_label),
-                   difficulty_source = coalesce(excluded.difficulty_source, problem.difficulty_source),
+                   difficulty_source = case when excluded.difficulty_raw is not null
+                       then excluded.difficulty_source else problem.difficulty_source end,
+                   difficulty_value = coalesce(excluded.difficulty_value, problem.difficulty_value),
                    tags_complete = problem.tags_complete or excluded.tags_complete,
                    updated_at = now()
             """)

@@ -11,6 +11,8 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.springframework.stereotype.Component;
 
+import com.fasterxml.jackson.databind.JsonNode;
+
 import com.szpu.algohub.common.ApiException;
 import com.szpu.algohub.common.ErrorKind;
 import com.szpu.algohub.platform.Avatars;
@@ -22,6 +24,8 @@ import com.szpu.algohub.platform.PlatformDtos.RatedContest;
 import com.szpu.algohub.platform.PlatformDtos.ResolvedIdentity;
 import com.szpu.algohub.platform.PlatformDtos.SyncContext;
 import com.szpu.algohub.platform.PlatformDtos.TotalsSnapshot;
+import com.szpu.algohub.platform.PlatformDtos.CatalogProblem;
+import com.szpu.algohub.platform.PlatformDtos.FetchedProblem;
 import com.szpu.algohub.platform.PlatformHttpClient;
 
 /**
@@ -50,9 +54,67 @@ public class NowcoderAdapter implements PlatformAdapter {
     @Override
     public PlatformCapability capability() {
         return new PlatformCapability(Platform.NOWCODER, true, true, true, false,
-                "NONE", "NONE", false,
+                "OFFICIAL", "OFFICIAL", false,
                 "读取竞赛练习主页的分页提交记录与原始时间；Tracker 与竞赛题可能重叠，不重复累计。历史覆盖以源站公开分页为准。"
                 + "比赛与 Rating 取公开的 Rating 记录；归属验证读公开主页上的个人简介。");
+    }
+
+    /** 竞赛题库的 problemId 与提交记录一致，不能用 Tracker 的不同题目直接覆盖。 */
+    @Override
+    public boolean fetchProblemCatalogSupported() { return true; }
+
+    @Override
+    public List<CatalogProblem> fetchProblemCatalog() {
+        Map<String, CatalogProblem> catalog = new LinkedHashMap<>();
+        // 源站最大 pageSize 为 50；共享 HTTP 客户端按牛客限速，避免逐用户重复查询。
+        for (int page = 1; page <= 2000; page++) {
+            String body = http.get(Platform.NOWCODER,
+                    "https://ac.nowcoder.com/acm/problem/list/json?page=" + page + "&pageSize=50");
+            JsonNode root;
+            try { root = MAPPER.readTree(body); }
+            catch (Exception e) {
+                throw ProtectionPage.orElse(Platform.NOWCODER, body,
+                        new ApiException(ErrorKind.PARSE_ERROR, "牛客题库响应解析失败"));
+            }
+            JsonNode data = root.path("data"), rows = data.path("problemSets");
+            if (root.path("code").asInt(-1) != 0 || !rows.isArray()
+                    || !data.path("problemCount").canConvertToInt() || data.path("problemCount").asInt() <= 0) {
+                throw new ApiException(ErrorKind.PARSE_ERROR, "牛客题库为空或字段变化");
+            }
+            int before = catalog.size();
+            for (JsonNode row : rows) {
+                String id = row.path("problemId").asText();
+                String title = row.path("name").asText();
+                if (!id.matches("[1-9]\\d*") || title.isBlank()) {
+                    throw new ApiException(ErrorKind.PARSE_ERROR, "牛客题库缺少题号或标题");
+                }
+                String raw = ratedDifficulty(row.path("difficulty").asText(null));
+                List<String> tags = new ArrayList<>();
+                for (JsonNode tag : row.path("tagList")) {
+                    if (!tag.path("name").asText().isBlank()) tags.add(tag.path("name").asText());
+                }
+                Integer solved = row.path("acceptPerson").canConvertToInt()
+                        && row.path("acceptPerson").asInt() >= 0 ? row.path("acceptPerson").asInt() : null;
+                catalog.put(id, new CatalogProblem(new FetchedProblem(id, title,
+                        "https://ac.nowcoder.com/acm/problem/" + id, raw, raw, "OFFICIAL",
+                        tags, row.path("tagList").isArray()), raw == null ? null : Integer.valueOf(raw), solved));
+            }
+            if (catalog.size() == before) {
+                throw new ApiException(ErrorKind.PARSE_ERROR, "牛客题库分页未推进，保留已有评级");
+            }
+            if (page * 50 >= data.path("problemCount").asInt()) return new ArrayList<>(catalog.values());
+            if (rows.size() < 50) {
+                throw new ApiException(ErrorKind.PARSE_ERROR, "牛客题库分页不完整，保留已有评级");
+            }
+        }
+        throw new ApiException(ErrorKind.PARSE_ERROR, "牛客题库超过分页上限，保留已有评级");
+    }
+
+    /** 牛客用 -1 表示未评级；不能把占位符当分数，也不能用它覆盖已知分数。 */
+    public static String ratedDifficulty(String raw) {
+        if (raw == null || !raw.matches("\\d+")) return null;
+        try { return String.valueOf(Integer.parseInt(raw)); }
+        catch (NumberFormatException e) { return null; }
     }
 
     @Override

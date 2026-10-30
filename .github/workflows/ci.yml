@@ -59,7 +59,7 @@ jobs:
           node-version: '22.19.0'
       - run: npm ci
         working-directory: frontend
-      - run: npm run type-check && npm run test:browser-sync && npm run test:announcement-editor && npm run test:friend-actions && npm run test:list-recovery && npm run test:sync-view && npm run test:recent-accepted && npm run build
+      - run: npm run type-check && npm run test:browser-sync && npm run test:announcement-editor && npm run test:friend-actions && npm run test:list-recovery && npm run test:sync-view && npm run test:recent-accepted && npm run test:difficulty && npm run build
         working-directory: frontend
   secrets:
     name: secrets

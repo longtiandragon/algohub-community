@@ -91,6 +91,8 @@ algohub:
     idle-account-interval-minutes: 720
     active-window-days: 14
     contest-interval-minutes: 45
+    # 独立于个人提交的题目评级更新：CF、AtCoder Problems、牛客竞赛题库；0 关闭
+    catalog-interval-minutes: 1440
     recheck-days: 3
   # 码蹄集昵称索引：后台每 10 分钟补全的排行榜页数（每页 50 人，受平台共享限速约束）；0 表示不在后台补全
   matiji-index:

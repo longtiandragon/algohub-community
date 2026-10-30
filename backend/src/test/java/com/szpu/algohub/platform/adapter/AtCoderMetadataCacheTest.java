@@ -8,6 +8,23 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.assertj.core.api.Assertions.*;
 
 class AtCoderMetadataCacheTest {
+ @Test void absentOrNullDifficultyDoesNotBecomeZero() {
+  var http=mock(PlatformHttpClient.class);
+  when(http.get(eq(Platform.ATCODER),endsWith("/problems.json"))).thenReturn("[{\"id\":\"abc001_a\",\"title\":\"A\",\"contest_id\":\"abc001\"}]");
+  when(http.get(eq(Platform.ATCODER),endsWith("/problem-models.json"))).thenReturn("{\"abc001_a\":{\"difficulty\":null}}");
+  assertThat(new AtCoderAdapter(http).fetchProblemCatalog().getFirst().difficultyValue()).isNull();
+ }
+
+ @Test void failedModelResponseIsNotCachedAsAnEmptySuccess() {
+  var http=mock(PlatformHttpClient.class);
+  when(http.get(eq(Platform.ATCODER),endsWith("/problems.json"))).thenReturn("[{\"id\":\"abc001_a\",\"title\":\"A\",\"contest_id\":\"abc001\"}]");
+  when(http.get(eq(Platform.ATCODER),endsWith("/problem-models.json")))
+    .thenReturn("[]", "{\"abc001_a\":{\"difficulty\":1600}}");
+  var adapter=new AtCoderAdapter(http);
+  assertThatThrownBy(adapter::fetchProblemCatalog).isInstanceOf(com.szpu.algohub.common.ApiException.class);
+  assertThat(adapter.fetchProblemCatalog().getFirst().difficultyValue()).isEqualTo(1600);
+ }
+
  @Test void concurrentCatalogReadersShareOneMetadataDownload() throws Exception {
   var http=mock(PlatformHttpClient.class);
   when(http.get(eq(Platform.ATCODER),endsWith("/problems.json"))).thenReturn("[{\"id\":\"abc001_a\",\"title\":\"A\",\"contest_id\":\"abc001\"}]");

@@ -40,7 +40,7 @@ public class AtCoderAdapter implements PlatformAdapter {
     private static final String RES = "https://kenkoooo.com/atcoder/resources/";
     private static final int PAGE_LIMIT = 500;
     private static final int MAX_PAGES_PER_RUN = 20;
-    private static final Duration METADATA_TTL = Duration.ofHours(24);
+    private static final Duration METADATA_TTL = Duration.ofHours(1);
 
     private final PlatformHttpClient http;
     private final ObjectMapper mapper = new ObjectMapper();
@@ -311,14 +311,20 @@ public class AtCoderAdapter implements PlatformAdapter {
         }
         Map<String, ProblemMeta> problems = new HashMap<>();
         JsonNode list = readJson(RES + "problems.json");
+        if (!list.isArray() || list.isEmpty()) {
+            throw new ApiException(ErrorKind.PARSE_ERROR, "AtCoder Problems 题目目录为空或字段变化");
+        }
         for (JsonNode node : list) {
             problems.put(node.path("id").asText(),
                     new ProblemMeta(node.path("title").asText(), node.path("contest_id").asText(), null));
         }
         JsonNode models = readJson(RES + "problem-models.json");
+        if (!models.isObject() || models.isEmpty()) {
+            throw new ApiException(ErrorKind.PARSE_ERROR, "AtCoder Problems 难度模型为空或字段变化");
+        }
         models.fields().forEachRemaining(entry -> {
             JsonNode value = entry.getValue();
-            if (!value.has("difficulty")) {
+            if (!value.path("difficulty").isNumber()) {
                 return;
             }
             ProblemMeta existing = problems.get(entry.getKey());

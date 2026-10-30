@@ -104,7 +104,7 @@ try {
     Write-Output '== Frontend: npm ci + build'
     Invoke-Native npm.cmd @('ci', '--no-audit', '--no-fund') "$build/frontend"
     Invoke-Native npm.cmd @('run', 'build') "$build/frontend"
-    foreach ($check in @('test:browser-sync', 'test:announcement-editor', 'test:friend-actions', 'test:list-recovery', 'test:sync-view')) {
+    foreach ($check in @('test:browser-sync', 'test:announcement-editor', 'test:friend-actions', 'test:list-recovery', 'test:sync-view', 'test:difficulty')) {
         Invoke-Native npm.cmd @('run', $check) "$build/frontend"
     }
 

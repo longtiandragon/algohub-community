@@ -101,7 +101,8 @@ export function difficultyStyle(
   const platformKey = (platform ?? '').toUpperCase()
   const displayValue = typeof value === 'number' ? value
     : platformKey === 'CODEFORCES' ? Number(/^CF\s+(\d+)$/.exec(label ?? '')?.[1])
-      : platformKey === 'ATCODER' ? Number(/^AtCoder Problems 估计\s+(\d+)$/.exec(label ?? '')?.[1])
+      : platformKey === 'ATCODER' ? Number(/^AtCoder Problems 估计\s+(-?\d+)$/.exec(label ?? '')?.[1])
+        : platformKey === 'NOWCODER' ? Number(/^(\d+)$/.exec(label ?? '')?.[1])
         : NaN
 
   if (platformKey === 'CODEFORCES' && Number.isFinite(displayValue)) {
@@ -121,6 +122,15 @@ export function difficultyStyle(
       title:
         `AtCoder Problems 估计难度 ${shown}${shown !== displayValue ? `（原始估计 ${displayValue}，低于 400 按 AtCoder Problems 的方式换算）` : ''}` +
         '；第三方估计值，不是 AtCoder 官方难度，只在 AtCoder 内部比较，不与其他平台换算',
+      unknown: false
+    }
+  }
+
+  if (platformKey === 'NOWCODER' && Number.isFinite(displayValue) && displayValue >= 0) {
+    return {
+      text: String(displayValue),
+      color: NEUTRAL,
+      title: `牛客源站难度 ${displayValue}；保留源站数值，只在牛客内部比较，不与其他平台换算`,
       unknown: false
     }
   }
@@ -150,7 +160,7 @@ export function difficultyStyle(
     }
   }
 
-  if (label) {
+  if (label && !(platformKey === 'NOWCODER' && ['-1', '未评级', '未评分'].includes(label))) {
     return {
       text: label,
       color: NEUTRAL,

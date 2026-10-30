@@ -260,6 +260,8 @@ public class AppProperties {
         private int activeWindowDays = 14;
         /** 比赛列表刷新间隔（分钟）。 */
         private long contestIntervalMinutes = 45;
+        /** 独立刷新题目评级的间隔；0 关闭自动题库刷新，手动刷新仍可用。 */
+        private long catalogIntervalMinutes = 1440;
         /** 增量同步时向前回查的天数，用于处理重判与迟到数据。 */
         private int recheckDays = 3;
 
@@ -338,6 +340,9 @@ public class AppProperties {
         public int getRecheckDays() {
             return recheckDays;
         }
+
+        public long getCatalogIntervalMinutes() { return catalogIntervalMinutes; }
+        public void setCatalogIntervalMinutes(long value) { catalogIntervalMinutes = value; }
 
         public void setRecheckDays(int recheckDays) {
             this.recheckDays = recheckDays;

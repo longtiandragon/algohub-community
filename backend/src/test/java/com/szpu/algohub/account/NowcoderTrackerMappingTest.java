@@ -107,6 +107,26 @@ class NowcoderTrackerMappingTest {
     }
 
     @Test
+    void trackerBackfillsAndRevisesScoresWithoutOverwritingOfficialCatalogScores() {
+        tracker.mergeCachedSolved();
+        assertThat(jdbc.queryForObject("select difficulty_value from problem where platform='NOWCODER' and problem_key='99001'", Integer.class))
+                .isEqualTo(800);
+        jdbc.update("update nowcoder_tracker_problem set difficulty='1600' where account_id=?", accountId);
+        tracker.mergeCachedSolved();
+        assertThat(jdbc.queryForObject("select difficulty_value from problem where platform='NOWCODER' and problem_key='99001'", Integer.class))
+                .isEqualTo(1600);
+        jdbc.update("update nowcoder_tracker_problem set difficulty='-1' where account_id=?", accountId);
+        tracker.mergeCachedSolved();
+        assertThat(jdbc.queryForObject("select difficulty_value from problem where platform='NOWCODER' and problem_key='99001'", Integer.class))
+                .isEqualTo(1600);
+        jdbc.update("update problem set difficulty_raw='1800',difficulty_label='1800',difficulty_value=1800,catalog_synced_at=now() where platform='NOWCODER' and problem_key='99001'");
+        jdbc.update("update nowcoder_tracker_problem set difficulty='800' where account_id=?", accountId);
+        tracker.mergeCachedSolved();
+        assertThat(jdbc.queryForObject("select difficulty_value from problem where platform='NOWCODER' and problem_key='99001'", Integer.class))
+                .isEqualTo(1800);
+    }
+
+    @Test
     void whenTheContestLibraryLaterGivesTheIdAnotherTitleTheTrackerSolveMovesInsteadOfDoubling() {
         tracker.mergeCachedSolved();
         // 竞赛题库同步后，99002 这个题号原来是另一道题

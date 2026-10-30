@@ -11,6 +11,12 @@ import org.apache.ibatis.annotations.Update;
 @Mapper
 public interface SyncTaskMapper {
 
+    @Select("""
+            select max(created_at) from sync_task
+             where task_type = 'PROBLEM_CATALOG' and platform = #{platform} and account_id is null
+            """)
+    java.time.Instant latestCatalogAttempt(@Param("platform") String platform);
+
     /**
      * 同一账号的同类任务不重叠：已有 PENDING / RUNNING 时不再入队（由部分唯一索引保证）。
      */

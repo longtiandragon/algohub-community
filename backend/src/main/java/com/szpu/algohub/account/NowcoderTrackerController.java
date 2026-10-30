@@ -56,7 +56,8 @@ public class NowcoderTrackerController {
             for(JsonNode paper:papers) for(JsonNode p:paper.path("questions")) {
                 String id=p.path("problemId").asText(),url=p.path("questionUrl").asText();
                 if(!id.matches("\\d+") || !url.startsWith("https://www.nowcoder.com/practice/")) continue;
-                candidates.put(id,new Problem(id,p.path("title").asText(),url,p.path("difficulty").asText("未评级")));
+                candidates.put(id,new Problem(id,p.path("title").asText(),url,
+                        com.szpu.algohub.platform.adapter.NowcoderAdapter.ratedDifficulty(p.path("difficulty").asText(null))));
             }
             Set<String> accepted=new HashSet<>();
             var ids=new ArrayList<>(candidates.keySet());
@@ -105,10 +106,21 @@ public class NowcoderTrackerController {
     void mergeCachedSolved() {
         tx.executeWithoutResult(status -> {
             jdbc.update(NowcoderTrackerMapping.MAPPED + """
-                insert into problem(platform,problem_key,title,url,difficulty_raw,difficulty_label,difficulty_source,tags_complete)
-                select distinct on (m.problem_key) 'NOWCODER',m.problem_key,m.title,m.url,m.difficulty,m.difficulty,'OFFICIAL',false
+                insert into problem(platform,problem_key,title,url,difficulty_raw,difficulty_label,difficulty_value,difficulty_source,tags_complete)
+                select distinct on (m.problem_key) 'NOWCODER',m.problem_key,m.title,m.url,
+                       case when m.difficulty ~ '^\\d{1,9}$' then m.difficulty end,
+                       case when m.difficulty ~ '^\\d{1,9}$' then m.difficulty end,
+                       case when m.difficulty ~ '^\\d{1,9}$' then m.difficulty::int end,'OFFICIAL',false
                   from mapped m order by m.problem_key,m.updated_at desc
-                on conflict(platform,problem_key) do nothing
+                on conflict(platform,problem_key) do update
+                   set difficulty_raw=excluded.difficulty_raw,
+                       difficulty_label=excluded.difficulty_label,
+                       difficulty_value=excluded.difficulty_value,
+                       difficulty_source=excluded.difficulty_source,
+                       updated_at=now()
+                 where problem.catalog_synced_at is null and excluded.difficulty_value is not null
+                   and (problem.difficulty_label is distinct from excluded.difficulty_label
+                        or problem.difficulty_value is distinct from excluded.difficulty_value)
                 """);
             jdbc.update(NowcoderTrackerMapping.MAPPED + """
                 insert into user_solved_problem(user_id,account_id,problem_id,platform,first_ac_confidence,source)
@@ -131,7 +143,8 @@ public class NowcoderTrackerController {
         for(JsonNode node:catalog.findParents("problemId")) {
             String id=node.path("problemId").asText(),url=node.path("url").asText();
             if(id.matches("\\d+") && url.startsWith("https://www.nowcoder.com/practice/"))
-                candidates.put(id,new Problem(id,node.path("title").asText(),url,node.path("difficulty").asText("未评级")));
+                candidates.put(id,new Problem(id,node.path("title").asText(),url,
+                        com.szpu.algohub.platform.adapter.NowcoderAdapter.ratedDifficulty(node.path("difficulty").asText(null))));
         }
         if(candidates.isEmpty()) throw new IllegalArgumentException("练习目录为空");
         var ids=new ArrayList<>(candidates.keySet());

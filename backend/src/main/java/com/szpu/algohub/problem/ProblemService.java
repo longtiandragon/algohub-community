@@ -26,6 +26,11 @@ public class ProblemService {
         problem.setDifficultyRaw(fetched.difficultyRaw());
         problem.setDifficultyLabel(fetched.difficultyLabel());
         problem.setDifficultySource(fetched.difficultySource());
+        // 提交同步也维护数值列，避免显示标签已变而难度筛选仍用旧值。
+        if (fetched.difficultyRaw() != null && fetched.difficultyRaw().matches("-?\\d+")) {
+            try { problem.setDifficultyValue(Integer.valueOf(fetched.difficultyRaw())); }
+            catch (NumberFormatException ignored) { /* 非 int 数值保留原文 */ }
+        }
         problem.setTagsComplete(fetched.tagsComplete());
         problemMapper.upsert(problem);
         Long id = problem.getId();

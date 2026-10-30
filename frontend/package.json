@@ -18,7 +18,8 @@
     "test:sync-view": "node scripts/test-sync-view.mjs",
     "shots": "node scripts/shots.mjs",
     "test:browser-sync": "node scripts/build-userscript-runtime.mjs --check && node scripts/test-browser-sync-runtime.mjs && node scripts/test-luogu-userscript.mjs && node scripts/test-qoj-userscript.mjs && node scripts/test-leetcode-userscript.mjs",
-    "test:recent-accepted": "node scripts/test-recent-accepted.mjs"
+    "test:recent-accepted": "node scripts/test-recent-accepted.mjs",
+    "test:difficulty": "node scripts/test-difficulty.mjs"
   },
   "dependencies": {
     "@fontsource/jetbrains-mono": "^5.3.0",
