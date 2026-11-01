@@ -109,8 +109,10 @@ class OwnershipProofFieldsTest {
         });
         var identity = new LuoguAdapter(http).resolveIdentity("sample", null);
         assertThat(identity.platformUid()).isEqualTo("100001");
-        // 读不到主页时不放空签名进去：核验会提示"暂时读不到"，而不是"没写验证串"
+        // 读不到主页时不放空签名，保留防护页的具体原因供核验展示。
         assertThat(identity.extra()).doesNotContainKey("slogan");
+        assertThat(identity.extra().get(com.szpu.algohub.platform.PlatformAdapter.OWNERSHIP_READ_ERROR))
+                .contains("防护页");
     }
 
     @Test

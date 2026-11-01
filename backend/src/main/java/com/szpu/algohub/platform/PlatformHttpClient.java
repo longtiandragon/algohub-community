@@ -295,6 +295,10 @@ public class PlatformHttpClient {
         }
         if (status == 401 || status == 403) {
             if (platform == Platform.LUOGU && status == 403) {
+                String reason = luoguAccountRestriction(body);
+                if (reason != null) {
+                    throw new ApiException(ErrorKind.UPSTREAM_ERROR, reason);
+                }
                 throw new ApiException(ErrorKind.RATE_LIMITED, "洛谷拒绝本次请求（403），可能为防护或访问限制；保留缓存并退避重试，不自动判定 Cookie 过期");
             }
             throw new ApiException(ErrorKind.CREDENTIAL_INVALID,
@@ -312,6 +316,22 @@ public class PlatformHttpClient {
             throw new ApiException(ErrorKind.UPSTREAM_ERROR, platform.getDisplayName() + " 返回状态 " + status);
         }
         return body;
+    }
+
+    private static String luoguAccountRestriction(String body) {
+        try {
+            var data = new com.fasterxml.jackson.databind.ObjectMapper().readTree(body).path("data");
+            if (data.path("errorCode").asInt() != 403) return null;
+            // 洛谷将未绑定手机号的主页限制也表述为“未通过实名认证”。
+            // 只映射已确认的业务错误，防护页等其他 403 仍按原分类处理。
+            return switch (data.path("errorMessage").asText("")) {
+                case "该用户未通过实名认证", "该用户未绑定手机号" ->
+                        "洛谷账号未绑定手机号，公开主页无法访问；请先在洛谷绑定手机号，再回来核验";
+                default -> null;
+            };
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     private static void close(InputStream body) {

@@ -218,6 +218,37 @@ class PlatformHttpClientTest {
     }
 
     @Test
+    void luoguPhoneRestrictionSurvivesIdentityLookup() {
+        for (String message : List.of("该用户未通过实名认证", "该用户未绑定手机号")) {
+            replies.add(ok("{\"users\":[{\"uid\":100001,\"name\":\"sample\"}]}"));
+            String body = "{\"status\":403,\"data\":{\"errorCode\":403,\"errorMessage\":\"" + message + "\"}}";
+            replies.add(new Raw(403, headers(Map.of()),
+                    new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8))));
+            var identity = new com.szpu.algohub.platform.adapter.LuoguAdapter(http)
+                    .resolveIdentity("100001", null);
+            assertThat(identity.platformUid()).isEqualTo("100001");
+            assertThat(identity.extra()).doesNotContainKey("slogan")
+                    .containsEntry(PlatformAdapter.OWNERSHIP_READ_ERROR,
+                            "洛谷账号未绑定手机号，公开主页无法访问；请先在洛谷绑定手机号，再回来核验");
+        }
+    }
+
+    @Test
+    void otherLuoguForbiddenResponsesAreNotMisreportedAsMissingPhone() {
+        for (String body : List.of("<html>challenge</html>",
+                "{\"data\":{\"errorCode\":403,\"errorMessage\":\"其他限制\"}}",
+                "{\"data\":{\"errorCode\":400,\"errorMessage\":\"该用户未通过实名认证\"}}")) {
+            replies.add(new Raw(403, headers(Map.of()),
+                    new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8))));
+            assertThatThrownBy(() -> http.get(Platform.LUOGU, "https://www.luogu.com.cn/user/100001"))
+                    .isInstanceOfSatisfying(ApiException.class, e -> {
+                        assertThat(e.getKind()).isEqualTo(ErrorKind.RATE_LIMITED);
+                        assertThat(e.getMessage()).contains("403").doesNotContain("未绑定手机号");
+                    });
+        }
+    }
+
+    @Test
     void luoguServerSideRecordFetchIsDisabled() {
         assertThatThrownBy(() -> new com.szpu.algohub.platform.adapter.LuoguAdapter(http).fetchSubmissions(
                 new PlatformDtos.SyncContext(1L, "sample_user", "100001", null, "_uid=100001; __client_id=expired", null)))

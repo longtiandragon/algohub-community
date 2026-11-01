@@ -247,8 +247,16 @@ class AccountOwnershipTest {
                 .when(adapter).resolveIdentity(anyString(), any());
         assertThatThrownBy(() -> service.verify(user, id(request)))
                 .hasMessageContaining("暂时读不到").hasMessageContaining("不计入");
+        String reason = "洛谷账号未绑定手机号，公开主页无法访问；请先在洛谷绑定手机号，再回来核验";
+        doReturn(new ResolvedIdentity("proof-uid", "proof-handle", "test",
+                Map.of(PlatformAdapter.OWNERSHIP_READ_ERROR, reason)))
+                .when(adapter).resolveIdentity(anyString(), any());
+        assertThatThrownBy(() -> service.verify(user, id(request)))
+                .hasMessage(reason + "（这次不计入核验次数）");
         assertThat(jdbc.queryForObject("select attempts from binding_request where id = ?", Integer.class,
                 id(request))).isZero();
+        assertThat(jdbc.queryForObject("select verified_at is null from binding_request where id = ?", Boolean.class,
+                id(request))).isTrue();
     }
 
     @Test

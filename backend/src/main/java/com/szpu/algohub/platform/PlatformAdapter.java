@@ -17,6 +17,9 @@ import com.szpu.algohub.platform.PlatformDtos.TotalsSnapshot;
  */
 public interface PlatformAdapter {
 
+    /** 公开证明字段读取失败时的可展示原因；不影响账号搜索结果。 */
+    String OWNERSHIP_READ_ERROR = "ownershipReadError";
+
     Platform platform();
 
     PlatformCapability capability();

@@ -81,7 +81,8 @@ public class LuoguAdapter implements PlatformAdapter {
                     Map.of("Referer", "https://www.luogu.com.cn/", "x-lentille-request", "content-only"), null);
             extra.put("slogan", slogan(home, uid));
         } catch (ApiException e) {
-            // 读不到公开主页（例如防护页）不影响查询与添加；核验时会说明"暂时读不到"，不算失败
+            // 保留具体原因供核验展示，同时允许搜索、选择这个账号。
+            extra.put(OWNERSHIP_READ_ERROR, e.getMessage());
         }
         return new ResolvedIdentity(uid, name, name, Map.copyOf(extra));
     }

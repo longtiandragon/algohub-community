@@ -219,6 +219,11 @@ public class BindingRequestService {
             }
             if (identity.extra() == null || !identity.extra().containsKey(proof.field())) {
                 // 公开资料这一项本次没读到（源站防护、超时等），不是没写验证串
+                String reason = identity.extra() == null ? null
+                        : identity.extra().get(PlatformAdapter.OWNERSHIP_READ_ERROR);
+                if (reason != null && !reason.isBlank()) {
+                    throw new ApiException(ErrorKind.UPSTREAM_ERROR, reason);
+                }
                 throw new ApiException(ErrorKind.UPSTREAM_ERROR, "暂时读不到" + platform.getDisplayName()
                         + "公开资料里的这一项，请稍后再核验");
             }
