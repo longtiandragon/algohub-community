@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AlgoHub QOJ AC 时间同步
 // @namespace    https://www.algohub.top/
-// @version      1.2.0
+// @version      1.3.0
 // @description  在本人QOJ浏览器内同步 AC 时间，可选择每 1-12 小时自动运行，不上传 Cookie。
 // @match        https://qoj.ac/*
 // @grant        GM_xmlhttpRequest
@@ -197,27 +197,38 @@
   }
   function parseDocument(text) {
     const doc = new DOMParser().parseFromString(text, 'text/html')
-    if (doc.querySelector('input[type="password"]') || /login|just a moment/i.test(doc.title))
+    if (doc.querySelector('input[type="password"]') || /login|登录|登入|登錄|just a moment/i.test(doc.title))
       throw new Error('QOJ 登录已失效或正在验证，请先在 QOJ 页面完成登录')
     return doc
   }
   function ownerOf(doc) {
-    const link = [...doc.querySelectorAll('a[href]')].find(a => a.textContent.trim() === 'My Submissions')
+    const link = [...doc.querySelectorAll('a[href]')].find(a => /^(?:My Submissions|我的提交记录|我的提交記錄)$/.test(a.textContent.trim()))
     const uid = link ? new URL(link.getAttribute('href'), 'https://qoj.ac').searchParams.get('submitter') : null
-    if (!uid || !/^[A-Za-z0-9_]{1,64}$/.test(uid)) throw new Error('无法确认 QOJ 当前登录账号，请切换英文界面后重试')
+    if (!uid || !/^[A-Za-z0-9_]{1,64}$/.test(uid)) throw new Error('无法确认 QOJ 当前登录账号，请确认已登录后重试')
     return uid
+  }
+  function headerOf(th) {
+    const aliases = {'题目':'Problem','題目':'Problem','提交者':'Submitter','结果':'Result','結果':'Result',
+      '语言':'Language','語言':'Language','提交时间':'Submit time','提交時間':'Submit time'}
+    const label = th.textContent.trim()
+    return aliases[label] || label
+  }
+  function emptyMessage(text) {
+    return /^(?:No submissions|No records|None|无|無|暂无记录|暫無記錄|没有提交|沒有提交)$/i.test(text.trim())
   }
   function parsePage(text, uid, page) {
     const doc = parseDocument(text)
     if (ownerOf(doc) !== uid) throw new Error('当前 QOJ 登录账号与连接码不一致')
-    const table = [...doc.querySelectorAll('table')].find(t => ['ID','Problem','Submitter','Result','Submit time'].every(h => [...t.querySelectorAll('th')].some(th => th.textContent.trim() === h)))
-    if (!table) throw new Error('QOJ 提交表结构变化，请切换英文界面后重试')
-    const headers = [...table.querySelectorAll('th')].map(th => th.textContent.trim())
+    const table = [...doc.querySelectorAll('table')].find(t => ['ID','Problem','Submitter','Result','Submit time'].every(h => [...t.querySelectorAll('th')].some(th => headerOf(th) === h)))
+    if (!table) throw new Error('QOJ 提交表结构变化，请更新同步脚本后重试')
+    const headers = [...table.querySelectorAll('th')].map(headerOf)
+    if (new Set(headers).size !== headers.length) throw new Error('QOJ 提交字段重复，本轮未上传')
     const rows = []
+    let empty = false
     for (const tr of table.querySelectorAll('tr')) {
       const cells = [...tr.querySelectorAll('td')]
       if (!cells.length) continue
-      if (cells.length === 1 && /no submissions|no records/i.test(cells[0].textContent)) continue
+      if (cells.length === 1 && emptyMessage(cells[0].textContent)) { empty = true; continue }
       if (cells.length !== headers.length) throw new Error('QOJ 提交字段不完整')
       const cell = name => cells[headers.indexOf(name)]
       const score = cell('Result').querySelector('[data-score][data-full]')
@@ -236,7 +247,7 @@
     const pageNumbers = [...doc.querySelectorAll('.pagination a[href]')].map(a => Number(new URL(a.getAttribute('href'),'https://qoj.ac').searchParams.get('page') || 1))
     const more = pageNumbers.some(n => n === page + 1)
     if (pageNumbers.some(n => !Number.isSafeInteger(n) || n < 1 || n > 500)) throw new Error('QOJ 分页异常')
-    if (!rows.length && (page !== 1 || more || !/no submissions|no records/i.test(table.textContent))) throw new Error('QOJ 返回空页，无法确认读取完整')
+    if (!rows.length && (page !== 1 || more || !empty)) throw new Error('QOJ 返回空页，无法确认读取完整')
     return {rows,more}
   }
   async function readPage(uid, page) {
@@ -306,8 +317,8 @@
       if (!data.more) {
         if (fingerprint(await readPage(uid,1)) !== fingerprint(first)) throw new Error('读取期间 QOJ 最新记录变化，本轮未上传，请重试')
         const doc = parseDocument(await sourceText(`/user/profile/${encodeURIComponent(uid)}`))
-        const heading = [...doc.querySelectorAll('h4')].find(h => /^Accepted problems/.test(h.textContent.trim()))
-        const count = heading?.textContent.match(/Accepted problems[：:]\s*(\d+)/)?.[1]
+        const heading = [...doc.querySelectorAll('h4')].find(h => /^(?:Accepted problems|AC 过的题目|已解決的問題)\s*[：:]/.test(h.textContent.trim()))
+        const count = heading?.textContent.match(/[：:]\s*(?:共\s*)?(\d+)/)?.[1]
         const links = heading?.nextElementSibling?.querySelectorAll('a[href]')
         if (count == null || !links) throw new Error('无法核对 QOJ 主页通过题单，本轮未上传')
         const profileIds = new Set([...links].map(a => /^\/problem\/([0-9]+)$/.exec(a.getAttribute('href'))?.[1]))

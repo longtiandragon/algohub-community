@@ -55,6 +55,20 @@ class CollectorTest(unittest.TestCase):
         self.assertEqual(caught.exception.kind, 'SESSION_EXPIRED')
 
     @patch('collector.time.sleep')
+    def test_localized_profile_titles_keep_exact_account_validation(self, sleep):
+        for label in ('User profile', '用户信息', '用戶檔案'):
+            for handle in ('sample_user', 'other_user', 'sample_user_extra'):
+                worker, _, _ = self.collector(data={
+                    'title': f'{handle} - {label} - QOJ.ac', 'total': 0,
+                    'motto': 'proof', 'problemIds': []})
+                if handle == 'sample_user':
+                    self.assertEqual(worker.fetch('/profile?handle=sample_user')['data']['total'], 0)
+                else:
+                    with self.assertRaises(FetchError) as caught:
+                        worker.fetch('/profile?handle=sample_user')
+                    self.assertEqual(caught.exception.kind, 'PARSE_ERROR')
+
+    @patch('collector.time.sleep')
     def test_empty_response_and_mismatched_submitter_rejected(self, sleep):
         worker, _, page = self.collector()
         page.goto.return_value.text.return_value = ''

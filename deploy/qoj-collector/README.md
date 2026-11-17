@@ -28,6 +28,19 @@ An administrator renews expired login in the private remote browser; captcha
 and second-factor checks require manual completion. No repeated password login
 attempts are made. Do not expose VNC, Chrome debug ports, or this collector publicly.
 
+The server collector recognizes English, Simplified Chinese and Traditional
+Chinese QOJ pages, including logout controls, profile titles/Motto/AC totals,
+submission headers and server time. Switching the server browser to Chinese
+does not require logging in again. The user browser-sync script also supports
+these languages as of v1.3.0. Language support does not bypass expired sessions or challenges.
+
+Regression checks (from the repository root):
+
+```
+python -m unittest discover -s deploy/qoj-collector -p test_collector.py
+node frontend/scripts/test-qoj-collector.mjs
+```
+
 ## Deployment migration
 
 Before deployment, record a UTC cutoff and counts of QOJ accounts/users. Back up

@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import vm from 'node:vm'
 import assert from 'node:assert/strict'
 import { DOMParser } from 'linkedom'
+import './test-qoj-collector.mjs'
 
 // Exercise the shipped parser directly with the observed QOJ HTML structure.
 const source = readFileSync(new URL('../public/userscripts/algohub-qoj-sync.user.js', import.meta.url), 'utf8')
@@ -34,8 +35,8 @@ assert.throws(()=>parse(page(row(1).replace('100.000000','50.000000'))),/AC/)
 assert.throws(()=>parse(page(row(1).replace('AC ✓','100'))),/AC/)
 assert.throws(()=>parse('<title>Login</title><input type="password">'),/登录/)
 assert.throws(()=>parse(page('')),/空页/)
-async function check(input, ids, rejection) {
-  pages=input; profileHtml=profile(ids); readCount=0
+async function check(input, ids, rejection, localize = html => html) {
+  pages=input; profileHtml=localize(profile(ids)); readCount=0
   if (rejection) await assert.rejects(context.readSnapshot('sample_user'),rejection)
   else return context.readSnapshot('sample_user')
 }
@@ -52,4 +53,29 @@ const large=await check(n=>page(Array.from({length:Math.min(10,1001-(n-1)*10)},(
 assert.equal(readCount,102)
 assert.deepEqual(Array.from(large,p=>p.rows.length),[500,500,1])
 assert.equal(new Set(large.flatMap(p=>Array.from(p.rows,r=>r.id))).size,1001)
+for (const traditional of [false, true]) {
+  const labels = {
+    'My Submissions': traditional ? '我的提交記錄' : '我的提交记录',
+    'Problem': traditional ? '題目' : '题目', 'Submitter': '提交者',
+    'Result': traditional ? '結果' : '结果', 'Language': traditional ? '語言' : '语言',
+    'Submit time': traditional ? '提交時間' : '提交时间',
+    'Submissions - QOJ': traditional ? '提交列表 - QOJ' : '提交记录 - QOJ',
+    'Accepted problems：': traditional ? '已解決的問題：共 ' : 'AC 过的题目：共 ',
+    ' problems': traditional ? ' 道題' : ' 道题', 'No submissions': traditional ? '無' : '无',
+  }
+  const localize = html => Object.entries(labels).reduce((text, [en, zh]) => text.replaceAll(en, zh), html)
+  const translated = parse(localize(page(row(3301845,14452))))
+  assert.equal(translated.rows[0].pid, '14452')
+  assert.equal(translated.rows[0].submitTime, 1793179255)
+  assert.throws(() => parse(localize(page(row(1,1,'someone')))), /账号/)
+  assert.throws(() => parse(localize(page(row(1).replace('AC ✓','100')))), /AC/)
+  assert.throws(() => parse(localize(page(row(1,1,'sample_user','2026-10-28T17:20:55')))), /时区/)
+  assert.throws(() => parse(localize(page(''))), /空页/)
+  assert.throws(() => parse(localize(page(row(1))).replace('sample_user">', 'someone">')), /账号/)
+  assert.equal((await check([localize(page(first,true)),localize(page(row(11,10)))], Array.from({length:10},(_,i)=>i+1), null, localize))[0].total, 11)
+  assert.equal((await check([localize(page('<tr><td colspan="6">No submissions</td></tr>'))], [], null, localize))[0].total, 0)
+  await check([localize(page(first,true)),localize(page(row(10)))], [1], /重复/, localize)
+}
+for (const title of ['登录', '登入', '登錄']) assert.throws(() => parse(`<title>${title} - QOJ.ac</title>`), /登录/)
+assert.throws(() => parse(page(row(1)).replace('<th>Language</th>', '<th>结果</th>')), /重复/)
 console.log('QOJ userscript: parser, completeness, identity, changing source and 1001-record batch checks passed')

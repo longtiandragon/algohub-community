@@ -185,7 +185,7 @@ const beijing = (value: string) => new Date(value).toLocaleString('zh-CN', { tim
         </div>
       </SectionCard>
 
-      <SectionCard title="3. 到QOJ页面同步" description="登录对应的QOJ账号，将 QOJ 界面语言切换为 English，打开任意QOJ页面，点右下角「AlgoHub 同步」，粘贴连接码，同步完成前别关页面。">
+      <SectionCard title="3. 到QOJ页面同步" description="登录对应的QOJ账号，支持简体中文、繁體中文和 English。打开任意QOJ页面，点右下角「AlgoHub 同步」，粘贴连接码，同步完成前别关页面。">
         <ul class="m-0 flex list-none flex-col gap-2 p-0 text-[12.5px] text-muted leading-relaxed">
           <li class="flex gap-2"><span class="i-lucide-clock mt-0.5 shrink-0" aria-hidden="true" />首次会读取浏览器能查到的历史记录，题多时要几分钟，不用反复点；不能据此确认历史完整。</li>
           <li class="flex gap-2"><span class="i-lucide-search mt-0.5 shrink-0" aria-hidden="true" />源站已显示 AC 但这里还未更新时，可以稍后重新同步。已连接自动同步可点「立即重新检查」，不用等下一次定时；连续请求仍受五分钟限频保护。</li>

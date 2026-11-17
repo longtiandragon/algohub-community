@@ -42,37 +42,42 @@ EXTRACT = r"""({kind, raw}) => {
     const source = new DOMParser().parseFromString(raw, 'text/html');
     const text = source.body?.textContent || '';
     const title = source.title || '';
-    if (source.querySelector('input[type=password]') || /login/i.test(title))
+    if (source.querySelector('input[type=password]') || /login|登录|登入|登錄/i.test(title))
         return {error: 'SESSION_EXPIRED', stage: 'login-document'};
     if (/just a moment|attention required/i.test(title) || source.querySelector('#challenge-form'))
         return {error: 'ACCESS_RESTRICTED'};
-    const hasLogout = [...source.querySelectorAll('a,button')].some(a => /^Logout$/i.test(a.textContent.trim()));
+    const hasLogout = [...source.querySelectorAll('a,button')].some(a => /^(?:Logout|登出)$/i.test(a.textContent.trim()));
     if (!hasLogout) return {error: 'SESSION_EXPIRED', stage: 'missing-logout-control'};
     if (kind === 'profile') {
         const headings = [...source.querySelectorAll('h4.list-group-item-heading')];
-        const motto = headings.find(h => h.textContent.trim() === 'Motto');
-        const accepted = headings.find(h => /^Accepted problems\s*[:：]/.test(h.textContent.trim()));
-        const count = accepted?.textContent.match(/[:：]\s*(\d+)\s+problems?/);
-        const heading = source.querySelector('.uoj-username');
-        if (!motto?.nextElementSibling || !count) return {error: 'PARSE_ERROR'};
+        const motto = headings.find(h => /^(?:Motto|格言)$/.test(h.textContent.trim()));
+        const accepted = headings.find(h => /^(?:Accepted problems|AC 过的题目|已解決的問題)\s*[:：]/.test(h.textContent.trim()));
+        const count = accepted?.textContent.match(/[:：]\s*(?:共\s*)?(\d+)\s*(?:problems?|道[题題])\s*$/);
+        if (!motto?.nextElementSibling || !accepted?.nextElementSibling || !count) return {error: 'PARSE_ERROR'};
         const ids = [...accepted.nextElementSibling.querySelectorAll('a[href]')].map(a =>
             a.getAttribute('href').match(/^\/problem\/(\d+)$/)?.[1]);
         if (ids.some(id => !id) || new Set(ids).size !== Number(count[1])) return {error: 'PARSE_ERROR'};
         return {title, motto: motto.nextElementSibling.textContent.trim(), total: Number(count[1]), problemIds: ids};
     }
+    // Normalize labels only; identity, AC scores and timestamps retain their strict checks.
+    const aliases = {'题目': 'Problem', '題目': 'Problem', '提交者': 'Submitter',
+        '结果': 'Result', '結果': 'Result', '提交时间': 'Submit time', '提交時間': 'Submit time',
+        '语言': 'Language', '語言': 'Language'};
+    const header = h => aliases[h.textContent.trim()] || h.textContent.trim();
     const required = ['ID', 'Problem', 'Submitter', 'Result', 'Submit time'];
     const table = [...source.querySelectorAll('table')].find(t => {
-        const headers = [...t.querySelectorAll('th')].map(h => h.textContent.trim());
+        const headers = [...t.querySelectorAll('th')].map(header);
         return required.every(h => headers.includes(h));
     });
     if (!table) return {error: 'PARSE_ERROR'};
-    const headers = [...table.querySelectorAll('th')].map(h => h.textContent.trim());
+    const headers = [...table.querySelectorAll('th')].map(header);
+    if (new Set(headers).size !== headers.length) return {error: 'PARSE_ERROR'};
     const rows = [];
     let empty = false;
     for (const tr of table.querySelectorAll('tr')) {
         const cells = [...tr.querySelectorAll('td')];
         if (!cells.length) continue;
-        if (cells.length === 1 && cells[0].hasAttribute('colspan') && /^None$/i.test(cells[0].textContent.trim())) {
+        if (cells.length === 1 && cells[0].hasAttribute('colspan') && /^(?:None|无|無)$/i.test(cells[0].textContent.trim())) {
             empty = true; continue;
         }
         if (cells.length !== headers.length) return {error: 'PARSE_ERROR'};
@@ -86,7 +91,7 @@ EXTRACT = r"""({kind, raw}) => {
     }
     const pagination = [...source.querySelectorAll('.pagination a[href]')].map(a => a.getAttribute('href'));
     const current = source.querySelector('.pagination .active')?.textContent.trim();
-    return {title, headers, rows, empty, pagination, current, sourceClock: text.match(/Server Time:\s*[^\n]*?\(UTC[^)]*\)/)?.[0]};
+    return {title, headers, rows, empty, pagination, current, sourceClock: text.match(/(?:Server Time|服务器时间|伺服器時間)\s*[:：]\s*[^\n]*?\(UTC[^)]*\)/)?.[0]};
 }"""
 
 
@@ -134,7 +139,8 @@ class Collector:
             result = self.page.evaluate(EXTRACT, {'kind': kind, 'raw': raw})
             if result.get('error'):
                 raise FetchError(result['error'], result.get('stage'))
-            if kind == 'profile' and not re.match(re.escape(handle) + r'\s*-\s*User profile', result['title']):
+            if kind == 'profile' and not re.fullmatch(
+                    re.escape(handle) + r'\s*-\s*(?:User profile|用户信息|用戶檔案)\s*-\s*QOJ\.ac', result['title']):
                 raise FetchError('PARSE_ERROR')
             if kind == 'submissions' and any(r.get('submitter') != handle for r in result['rows']):
                 raise FetchError('PARSE_ERROR')
