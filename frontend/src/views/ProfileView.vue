@@ -1,25 +1,26 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { defineAsyncComponent, computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { heatmapWindow } from '@/utils/dailyMetric'
 import AchievementPanel from '@/components/AchievementPanel.vue'
-import MonthlyReport from '@/components/MonthlyReport.vue'
 import { get, notifyError } from '@/api/client'
 import type { HeatmapData } from '@/api/types'
 import DailyRecords from '@/components/profile/DailyRecords.vue'
-import DistributionCards from '@/components/profile/DistributionCards.vue'
 import MonthCalendar from '@/components/profile/MonthCalendar.vue'
-import NowcoderTrackerPanel from '@/components/profile/NowcoderTrackerPanel.vue'
 import PlatformComposition from '@/components/profile/PlatformComposition.vue'
 import PlatformPie from '@/components/profile/PlatformPie.vue'
 import ProfileCard from '@/components/profile/ProfileCard.vue'
 import ProgressCards from '@/components/profile/ProgressCards.vue'
 import RecentAccepted from '@/components/profile/RecentAccepted.vue'
-import SubmissionHistory from '@/components/profile/SubmissionHistory.vue'
 import PageTabs from '@/components/ui/PageTabs.vue'
 import { useBreakpoint } from '@/composables/useBreakpoint'
-import LuoguExportPanel from '@/components/LuoguExportPanel.vue'
-import RatingHistoryCard from '@/components/RatingHistoryCard.vue'
+
+const DistributionCards = defineAsyncComponent(() => import('@/components/profile/DistributionCards.vue'))
+const MonthlyReport = defineAsyncComponent(() => import('@/components/MonthlyReport.vue'))
+const RatingHistoryCard = defineAsyncComponent(() => import('@/components/RatingHistoryCard.vue'))
+const NowcoderTrackerPanel = defineAsyncComponent(() => import('@/components/profile/NowcoderTrackerPanel.vue'))
+const SubmissionHistory = defineAsyncComponent(() => import('@/components/profile/SubmissionHistory.vue'))
+const LuoguExportPanel = defineAsyncComponent(() => import('@/components/LuoguExportPanel.vue'))
 
 interface ProfileData {
   platformSolved: { platform: string; solved: number }[]
@@ -60,6 +61,8 @@ interface ProfileData {
 const profile = ref<ProfileData | null>(null)
 /** 近一年的每日数据：每日记录、每周新增、累计通过共用这一份 */
 const heatmap = ref<HeatmapData | null>(null)
+const streakLoading = ref(true)
+const streakError = ref(false)
 const streak = ref<{ longestStreak: number } | null>(null)
 const metric = ref('FIRST_AC')
 const loading = ref(true)
@@ -119,11 +122,13 @@ async function loadHeatmap() {
   }
 }
 async function loadStreak() {
+  streakLoading.value = true
+  streakError.value = false
   try {
     streak.value = await get<{ longestStreak: number }>('/activity/streak')
   } catch {
-    streak.value = null
-  }
+    streakError.value = true
+  } finally { streakLoading.value = false }
 }
 watch(selectedPlatform, loadHeatmap)
 
@@ -131,8 +136,7 @@ async function load() {
   loading.value = true
   loadError.value = ''
   try {
-    const [p] = await Promise.all([get<ProfileData>('/stats/profile'), loadHeatmap(), loadStreak()])
-    profile.value = p
+    profile.value = await get<ProfileData>('/stats/profile')
 
   } catch (e) {
     loadError.value = '个人档案加载失败，请重试；这不代表你没有记录'
@@ -171,6 +175,8 @@ onMounted(() => {
   themeObserver = new MutationObserver(() => { themeVersion.value += 1 })
   themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
   void load()
+  void loadStreak()
+  void loadHeatmap()
 })
 
 onBeforeUnmount(() => {
@@ -199,10 +205,12 @@ const totalOnlyAccounts = computed(() => (profile.value?.snapshotOverview ?? [])
       :total-passed="profile?.totalPassed ?? null"
       :longest-streak="streak?.longestStreak ?? null"
       :loading="loading"
+      :streak-loading="streakLoading"
       class="mb-4"
       @reports="goTab('reports')"
     />
 
+    <button v-if="streakError" type="button" @click="loadStreak">连续打卡读取失败，重试</button>
     <PageTabs :tabs="tabLinks" :active="tab" label="档案分区" class="profile-tabs" />
 
     <!-- 概览：每日记录 → 每周新增、累计 → 平台构成、最近通过 → 成就 -->
@@ -229,7 +237,7 @@ const totalOnlyAccounts = computed(() => (profile.value?.snapshotOverview ?? [])
         @select="showDay"
         @retry="loadHeatmap"
       />
-      <ProgressCards :data="heatmap" :loading="loading" />
+      <ProgressCards :data="heatmap" :loading="heatmapLoading" />
       <div class="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
         <PlatformComposition :solved="profile?.platformSolved ?? []" :totals="profile?.platformTotals ?? []" :total-only="totalOnlyAccounts" />
         <RecentAccepted :rows="profile?.recentAccepted ?? []" :all-to="tabLink('records')" />

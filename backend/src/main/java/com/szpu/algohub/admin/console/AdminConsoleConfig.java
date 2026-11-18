@@ -58,7 +58,7 @@ public class AdminConsoleConfig implements WebMvcConfigurer {
             @Override
             public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
                 String path = path(request);
-                if (path.equals(AdminPermission.ME_PATH)) {
+                if (AdminPermission.sharedAdminPath(path)) {
                     return true;
                 }
                 AdminPermission needed = AdminPermission.forPath(path)
