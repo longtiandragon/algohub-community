@@ -3,12 +3,16 @@ package com.szpu.algohub.platform.adapter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.TreeSet;
+import java.util.regex.Pattern;
 
 /**
  * 比赛分类规则。Codeforces 的 Contest.type 表示计分制而不是 Div，
  * 因此 Div 等分类按名称规则判断，联合场次允许多个标签，必要时由管理员人工覆盖。
  */
 public final class ContestCategoryRules {
+
+    private static final Pattern DIVISION = Pattern.compile("\\bdiv\\.?\\s*([1-4])\\b(?:\\s*[+&]\\s*(?:div\\.?\\s*)?([1-4])\\b)?");
 
     private ContestCategoryRules() {
     }
@@ -19,18 +23,13 @@ public final class ContestCategoryRules {
         if (lower.contains("educational")) {
             tags.add("Educational");
         }
-        if (lower.contains("div. 1") || lower.contains("div.1")) {
-            tags.add("Div.1");
+        var divisions = new TreeSet<String>();
+        var match = DIVISION.matcher(lower);
+        while (match.find()) {
+            divisions.add("Div." + match.group(1));
+            if (match.group(2) != null) divisions.add("Div." + match.group(2));
         }
-        if (lower.contains("div. 2") || lower.contains("div.2")) {
-            tags.add("Div.2");
-        }
-        if (lower.contains("div. 3") || lower.contains("div.3")) {
-            tags.add("Div.3");
-        }
-        if (lower.contains("div. 4") || lower.contains("div.4")) {
-            tags.add("Div.4");
-        }
+        tags.addAll(divisions);
         if (lower.contains("global round")) {
             tags.add("Global");
         }
