@@ -93,14 +93,6 @@ export const useAuthStore = defineStore('auth', () => {
         if (result?.success) {
           await apply(result.data)
         } else {
-          // Recover a host-only login issued before www was canonicalized. No credentials enter JS.
-          const key = 'algohub-domain-migration-attempted'
-          if (location.hostname === 'algohub.top' && !sessionStorage.getItem(key)) {
-            sessionStorage.setItem(key, '1')
-            location.replace('https://www.algohub.top/api/auth/domain-migration/start?returnTo=' +
-              encodeURIComponent(location.pathname + location.search + location.hash))
-            await new Promise<never>(() => {})
-          }
           clear()
         }
         loaded.value = true
