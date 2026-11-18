@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { get } from '@/api/client'
 import type { Contest } from '@/api/types'
 import PlatformLogo from '@/components/PlatformLogo.vue'
@@ -20,20 +20,26 @@ const error = ref('')
 const now = ref(Date.now())
 let clock: ReturnType<typeof setInterval> | undefined
 
+let request = 0
 async function load() {
+  const id = ++request
   loading.value = true
   error.value = ''
   try {
-    contests.value = (await get<{ contests: Contest[] }>('/contests')).contests
+    const rows = await get<Contest[]>('/contests/upcoming', { limit: props.limit })
+    if (id === request) contests.value = rows
   } catch (e) {
-    error.value = e instanceof Error ? e.message : '比赛读取失败'
+    if (id === request) error.value = e instanceof Error ? e.message : '比赛读取失败'
   } finally {
-    loading.value = false
+    if (id === request) loading.value = false
   }
 }
+watch(() => props.limit, load, { immediate: true })
 onMounted(() => {
-  void load()
-  clock = setInterval(() => (now.value = Date.now()), 60_000)
+  clock = setInterval(() => {
+    now.value = Date.now()
+    if (upcoming.value.length < contests.value.length && !document.hidden) void load()
+  }, 60_000)
 })
 onBeforeUnmount(() => clearInterval(clock))
 

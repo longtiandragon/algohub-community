@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { get, post, notifyError } from '@/api/client'
+import { getPlatformCapabilities } from '@/api/platformCapabilities'
 import type { HeatmapData, PlatformCapability } from '@/api/types'
 import CampusWeekCard from '@/components/activity/CampusWeekCard.vue'
 import FeedGroups from '@/components/activity/FeedGroups.vue'
@@ -95,7 +96,7 @@ let timer: number | undefined
 
 async function loadPlatforms() {
   try {
-    platforms.value = await get<PlatformCapability[]>('/platforms/capabilities')
+    platforms.value = await getPlatformCapabilities()
   } catch (e) {
     notifyError(e)
   }

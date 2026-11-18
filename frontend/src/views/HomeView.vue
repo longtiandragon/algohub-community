@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { get } from '@/api/client'
 import type { HeatmapData, Ranking } from '@/api/types'
 import { useBreakpoint } from '@/composables/useBreakpoint'
@@ -110,9 +110,8 @@ function loadAll(silent = false) {
 
 let timer: ReturnType<typeof setInterval> | undefined
 onMounted(() => {
-  loadAll()
   timer = setInterval(() => {
-    if (!document.hidden) loadAll(true)
+    if (!document.hidden && (accountStore.loaded || accountStore.error) && !onboardingStep.value) loadAll(true)
   }, 60_000)
 })
 onBeforeUnmount(() => {
@@ -194,6 +193,9 @@ const onboardingStep = computed<2 | 3 | null>(() => {
   if (!accountStore.accounts.length) return 2
   return accountStore.accounts.some((account) => account.lastSuccessAt) ? null : 3
 })
+watch(() => Boolean(accountStore.loaded || accountStore.error) && onboardingStep.value === null, visible => {
+  if (visible) loadAll()
+}, { immediate: true })
 const firstSyncFailed = computed(() => accountStore.accounts.some((account) => account.syncStatus === 'FAILED'))
 </script>
 
@@ -279,7 +281,7 @@ const firstSyncFailed = computed(() => accountStore.accounts.some((account) => a
       </div>
     </template>
 
-    <template v-else>
+    <template v-else-if="accountStore.loaded || accountStore.error">
       <!-- 四个数据块 -->
       <div class="grid grid-cols-2 gap-3 md:grid-cols-4 lg:gap-4" data-test="home-stats">
         <StatTile

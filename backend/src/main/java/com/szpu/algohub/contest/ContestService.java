@@ -70,6 +70,11 @@ public class ContestService {
         return contest;
     }
 
+    public List<Contest> homeUpcoming(int limit) {
+        Instant now = Instant.now();
+        return contestMapper.homeUpcoming(now.minus(Duration.ofHours(6)), now, limit);
+    }
+
     public List<Contest> upcoming(String platform, String category, int limit) {
         // 保留最近开始的比赛，便于查看正在进行的场次。
         return contestMapper.findUpcoming(Instant.now().minus(Duration.ofHours(6)),

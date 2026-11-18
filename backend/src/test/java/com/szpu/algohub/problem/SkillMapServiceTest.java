@@ -185,6 +185,8 @@ class SkillMapServiceTest {
 
         Map<String, Object> map = skillMapService.map(userId, "CODEFORCES");
 
+        assertThat(skillMapService.categoryNames(userId, "CODEFORCES")).containsExactlyInAnyOrderElementsOf(
+                list(map, "categories").stream().map(row -> (String) row.get("category")).toList());
         Map<String, Object> dpRow = category(map, "动态规划");
         assertThat(((Number) dpRow.get("catalogCount")).intValue()).isEqualTo(2);
         assertThat(((Number) dpRow.get("solvedCount")).intValue()).isEqualTo(1);

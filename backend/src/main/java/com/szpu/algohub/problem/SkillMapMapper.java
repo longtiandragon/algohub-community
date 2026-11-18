@@ -18,6 +18,14 @@ import org.apache.ibatis.annotations.Select;
  */
 @Mapper
 public interface SkillMapMapper {
+    @Select("""
+            select distinct coalesce(m.category, 'UNMAPPED') as category
+              from problem p join problem_tag t on t.problem_id = p.id
+              left join tag_category_mapping m on m.platform = p.platform and m.tag_raw = t.tag_raw
+             where p.platform = #{platform} order by category
+            """)
+    List<String> categoryNames(@Param("platform") String platform);
+
 
     /**
      * 各统一分类下：题库题量、我通过的题数、通过题里的最高难度、最近一次通过时间、近 30 天新增。

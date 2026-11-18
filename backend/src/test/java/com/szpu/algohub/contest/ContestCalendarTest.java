@@ -90,6 +90,17 @@ class ContestCalendarTest {
     }
 
     @Test
+    void homeSkipsEndedContestsBeforeTakingTheViewportLimit() {
+        Instant now = Instant.now();
+        contest("past", "Finished", now.minusSeconds(7200), now.minusSeconds(3600), 3600);
+        Long active = contest("live", "Live", now.minusSeconds(600), now.plusSeconds(600), 1200);
+        Long next = contest("soon", "Soon", now.plusSeconds(600), null, null);
+        Long later = contest("later", "Later", now.plusSeconds(1200), null, null);
+        assertThat(contestService.homeUpcoming(2)).extracting(Contest::getId).containsExactly(active, next);
+        assertThat(contestService.homeUpcoming(3)).extracting(Contest::getId).containsExactly(active, next, later);
+    }
+
+    @Test
     void favoritingIsIdempotentAndPrivateToEachUser() {
         Long id = contest("2000", "Round 900", Instant.now().plus(Duration.ofDays(2)), null, 7200);
 

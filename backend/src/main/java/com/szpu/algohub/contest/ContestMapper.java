@@ -44,6 +44,13 @@ public interface ContestMapper {
     List<Contest> findUpcoming(@Param("from") Instant from, @Param("platform") String platform,
                                @Param("category") String category, @Param("limit") int limit);
 
+    @Select("""
+            select * from contest where start_at >= #{from}
+              and (end_at > #{now} or start_at > #{now})
+             order by start_at, id limit #{limit}
+            """)
+    List<Contest> homeUpcoming(@Param("from") Instant from, @Param("now") Instant now, @Param("limit") int limit);
+
     @Select("select distinct category from contest where category is not null order by category")
     List<String> listCategories();
 

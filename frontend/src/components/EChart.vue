@@ -21,7 +21,11 @@ async function initialize() {
     chart = init(el.value)
     chart.on('click', value => emit('pointClick', value as { data?: unknown; name?: string }))
     render()
-  } catch { chartError.value = true }
+  } catch {
+    chart?.dispose()
+    chart = null
+    chartError.value = true
+  }
 }
 function render() {
   if (!chart) return

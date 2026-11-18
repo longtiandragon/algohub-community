@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { get, notifyError } from '@/api/client'
+import { getPlatformCapabilities } from '@/api/platformCapabilities'
 import type { PlatformCapability } from '@/api/types'
 import SkillCategoryDetail from '@/components/practice/SkillCategoryDetail.vue'
 import SkillRadar from '@/components/practice/SkillRadar.vue'
@@ -102,7 +103,7 @@ async function load() {
   }
 }
 watch(platform, () => void load(), { immediate: true })
-void get<PlatformCapability[]>('/platforms/capabilities')
+void getPlatformCapabilities()
   .then((data) => (capabilities.value = data))
   .catch(() => (capabilities.value = []))
 

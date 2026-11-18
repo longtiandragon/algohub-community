@@ -78,12 +78,21 @@ normalize() {
 }
 
 # 用重命名替换软链接，切换是原子的
-point_to() {
+point_backend_to() {
   local id="$1"
   ln -sfn "releases/$id/algohub.jar" "$BASE/.algohub.jar.next"
   mv -T "$BASE/.algohub.jar.next" "$BASE/algohub.jar"
+}
+
+point_frontend_to() {
+  local id="$1"
   ln -sfn "releases/$id/frontend" "$BASE/.frontend.next"
   mv -T "$BASE/.frontend.next" "$BASE/frontend"
+}
+
+point_to() {
+  point_backend_to "$1"
+  point_frontend_to "$1"
 }
 
 wait_healthy() {
@@ -197,9 +206,9 @@ activate() {
 
   printf '%s\n' "$previous" > "$RELEASES/.previous"
   log "切换：${previous:-（无）} -> $id"
-  point_to "$id"
+  point_backend_to "$id"
   if systemctl restart algohub && wait_healthy; then
-    if after="$(schema_fingerprint)"; then
+    if after="$(schema_fingerprint)" && point_frontend_to "$id"; then
       printf '%s\n' "$after" > "$RELEASES/$id/SCHEMA.sha256"
       log "健康检查通过，已记录本版本支持的迁移指纹"
       prune

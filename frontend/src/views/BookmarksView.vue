@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter, type LocationQueryRaw } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { del, get, notifyError } from '@/api/client'
+import { getPlatformCapabilities } from '@/api/platformCapabilities'
 import type { PlatformCapability } from '@/api/types'
 import BookmarkCard from '@/components/practice/BookmarkCard.vue'
 import BookmarkEditDialog from '@/components/practice/BookmarkEditDialog.vue'
@@ -119,7 +120,7 @@ async function load() {
 }
 watch(() => [route.query.tab, route.query.platform, route.query.category, route.query.due, route.query.page], () => void load(), { immediate: true })
 
-void get<PlatformCapability[]>('/platforms/capabilities').then((d) => (platforms.value = d)).catch(() => {})
+void getPlatformCapabilities().then((d) => (platforms.value = d)).catch(() => {})
 // 算法方向的取值来自算法地图，和那边同一套口径
 void get<{ categories: { category: string }[] }>('/skill-map')
   .then((m) => (categories.value = (m.categories ?? []).map((c) => c.category)))

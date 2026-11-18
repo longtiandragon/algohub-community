@@ -1,5 +1,6 @@
 import { computed, onBeforeUnmount, ref } from 'vue'
 import { get, notifyError } from '@/api/client'
+import { getPlatformCapabilities } from '@/api/platformCapabilities'
 import type { BindingRequest, OwnershipAppeal, PlatformCapability, SyncTask } from '@/api/types'
 import { useAccountsStore } from '@/stores/accounts'
 
@@ -30,7 +31,7 @@ export function useAccountsPage() {
     try {
       const [accountsLoaded, c, t, b, r] = await Promise.all([
         store.reload(),
-        get<PlatformCapability[]>('/platforms/capabilities'),
+        getPlatformCapabilities(),
         get<SyncTask[]>('/sync/tasks', { limit: 30 }),
         get<BindingRequest[]>('/binding-requests'),
         get<OwnershipAppeal[]>('/ownership-appeals')

@@ -33,9 +33,10 @@ public class ProblemsetController {
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String sort,
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "20") int size) {
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "true") boolean includeCatalog) {
         return ApiResult.ok(problemsetService.search(CurrentUser.requireId(),
                 new Query(platform, minDifficulty, maxDifficulty, onlyRated, keyword, category,
-                        status, sort, page, size)));
+                        status, sort, page, size), includeCatalog));
     }
 }
