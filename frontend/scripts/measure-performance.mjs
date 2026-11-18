@@ -8,7 +8,7 @@ if (base.hostname !== '127.0.0.1') throw new Error('Use a loopback demo origin')
 const cases = [
   ['login', '/login', 'input[type=email]:enabled', null],
   ['home', '/', '.bar-value', 'chenyiming'],
-  ['profile', '/profile', '.profile-card .kpi dd .num', 'chenyiming'],
+  ['profile', '/profile', '.profile-card .kpi:first-child dd .num', 'chenyiming'],
   ['ranking', '/ranking', '[data-test=ranking-row], [data-test=podium]', 'chenyiming'],
   ['problems', '/problems', '[data-problem]', 'chenyiming'],
   ['admin', '/admin?tab=users', '.user-cell', 'admin']
@@ -46,7 +46,7 @@ try {
         const metrics = await page.evaluate(() => {
           const nav = performance.getEntriesByType('navigation')[0]
           const resources = performance.getEntriesByType('resource')
-          return {ttfbMs:Math.round(nav.responseStart), bytes:resources.reduce((sum,r)=>sum+r.transferSize,nav.transferSize), refreshEndMs:Math.round(resources.find(r=>r.name.endsWith('/api/auth/refresh'))?.responseEnd ?? 0), jsEndMs:Math.round(Math.max(0,...resources.filter(r=>new URL(r.name).pathname.endsWith('.js')).map(r=>r.responseEnd)))}
+          return {firstPaintMs:Math.round(performance.getEntriesByName('first-contentful-paint')[0]?.startTime ?? 0), ttfbMs:Math.round(nav.responseStart), bytes:resources.reduce((sum,r)=>sum+r.transferSize,nav.transferSize), refreshEndMs:Math.round(resources.find(r=>r.name.endsWith('/api/auth/refresh'))?.responseEnd ?? 0), jsEndMs:Math.round(Math.max(0,...resources.filter(r=>new URL(r.name).pathname.endsWith('.js')).map(r=>r.responseEnd)))}
         })
         results.push({name,run,cache,readyMs,...metrics})
         if (process.env.PERF_OUTPUT) fs.writeFileSync(process.env.PERF_OUTPUT, JSON.stringify(results))

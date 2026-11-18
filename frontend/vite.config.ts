@@ -25,6 +25,25 @@ const elementPlusStyles = fs.existsSync(elementPlusComponents)
 export default defineConfig({
   plugins: [
     vue(),
+    {
+      name: 'paint-startup-before-styles',
+      apply: 'build',
+      transformIndexHtml: {
+        order: 'post',
+        handler(html) {
+          // The inline startup message can paint as soon as the HTML arrives.
+          // Keep native stylesheet loading and ordering ahead of the app's first render.
+          const styles: string[] = []
+          const document = html.replace(/<head>[\s\S]*?<\/head>/, head =>
+            head.replace(/<link\b[^>]*\brel="stylesheet"[^>]*>/g, tag => {
+              styles.push(tag)
+              return ''
+            })
+          )
+          return document.replace('</body>', () => `${styles.join('\n')}\n</body>`)
+        }
+      }
+    },
     // UnoCSS 的配置在 uno.config.ts
     UnoCSS(),
     // Element Plus 按需引入：模板里用到的组件、v-loading 指令和它们的样式由插件引入。
