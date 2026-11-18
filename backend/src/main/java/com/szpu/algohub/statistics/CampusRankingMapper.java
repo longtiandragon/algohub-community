@@ -91,28 +91,35 @@ public interface CampusRankingMapper {
             from account_totals t group by t.user_id,t.platform
         ), cumulative_totals as (
             select user_id,sum(solved)::bigint as solved from platform_totals group by user_id
+        ), solved_counts as (
+            select e.user_id, count(distinct s.problem_id) as details,
+                   count(distinct coalesce('g:' || gm.group_id, 'p:' || s.problem_id))
+                       filter (where #{type} = 'TOTAL' or e.platform <> 'LUOGU'
+                               or s.earliest_known_ac_at is not null) as unique_solved
+            from eligible e join user_solved_problem s on s.account_id = e.id
+            left join problem_group_member gm on gm.problem_id = s.problem_id
+            group by e.user_id
+        ), period_scores as (
+            select user_id, sum(value)::bigint as score
+            from metric_daily
+            where #{type} <> 'TOTAL' and metric = #{metric} and stat_date between #{from} and #{to}
+            group by user_id
         ), scores as (
             select e.user_id as "userId", e.display_name as "displayName", e.user_avatar_url as "avatarUrl",
                    e.enrollment_year as "enrollmentYear", e.class_name as "className",
                    e.school_name as "schoolName",
                    bool_or(e.ownership_status != 'VERIFIED') as "hasUnverifiedSource",
                    max(e.last_success_at) as "lastSuccessAt",
-                   greatest(coalesce(mt.solved,0) -
-                       (select count(distinct s.problem_id) from user_solved_problem s
-                        join eligible x on x.id=s.account_id where x.user_id=e.user_id),0) as "snapshotOnlySolved",
-                   case when #{type} = 'TOTAL' then
-                       coalesce(mt.solved, 0)
-                   else (select coalesce(sum(d.value), 0)::bigint from metric_daily d
-                         where d.user_id = e.user_id and d.metric = #{metric}
-                         and d.stat_date between #{from} and #{to}) end as score,
-                   (select count(distinct coalesce('g:' || gm.group_id, 'p:' || s.problem_id))
-                    from user_solved_problem s join eligible x on x.id = s.account_id
-                    left join problem_group_member gm on gm.problem_id = s.problem_id
-                    where x.user_id = e.user_id
-                      and (#{type} = 'TOTAL' or x.platform <> 'LUOGU' or s.earliest_known_ac_at is not null)) as "uniqueSolved"
+                   greatest(coalesce(mt.solved,0) - coalesce(sc.details,0), 0) as "snapshotOnlySolved",
+                   case when #{type} = 'TOTAL' then coalesce(mt.solved,0)
+                        else coalesce(ps.score,0) end as score,
+                   coalesce(sc.unique_solved,0) as "uniqueSolved"
             from eligible e
             left join cumulative_totals mt on mt.user_id = e.user_id
-            group by e.user_id, e.display_name, e.user_avatar_url, e.enrollment_year, e.class_name, e.school_name, mt.solved
+            left join solved_counts sc on sc.user_id = e.user_id
+            left join period_scores ps on ps.user_id = e.user_id
+            group by e.user_id, e.display_name, e.user_avatar_url, e.enrollment_year, e.class_name, e.school_name,
+                     mt.solved, sc.details, sc.unique_solved, ps.score
         ), ranked as (
             select *, rank() over (order by score desc) as rank,
                    row_number() over (order by score desc, "userId") as position,
