@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import RemarkName from '@/components/school/RemarkName.vue'
 import { computed } from 'vue'
 import BookmarkButton from '@/components/BookmarkButton.vue'
 import DifficultyTag from '@/components/DifficultyTag.vue'
@@ -105,7 +106,7 @@ const safeUrl = (url: string | null) => (url && /^https?:\/\//i.test(url) ? url 
             <RouterLink :to="`/users/${item.userId}`" :aria-label="`查看 ${item.displayName} 的档案`"><UserAvatar :src="item.avatarUrl" :name="item.displayName" class="avatar" :class="mine(item) ? 'bg-brand-btn text-white' : avatarTone(item.userId)" /></RouterLink>
             <div class="min-w-0 flex flex-1 flex-col gap-1.5">
               <p class="m-0 text-sm text-body leading-normal">
-                <RouterLink :to="`/users/${item.userId}`" class="text-ink font-semibold no-underline hover:underline">{{ item.displayName || '匿名同学' }}</RouterLink><span v-if="mine(item)" class="text-muted">（我）</span>
+                <RemarkName :user-id="item.userId" :name="item.displayName || '匿名同学'" compact profile class="text-ink font-semibold"/><span v-if="mine(item)" class="text-muted">（我）</span>
                 <span v-if="item.following" class="follow-label">已关注</span>
                 通过了
                 <a v-if="safeUrl(item.url)" :href="safeUrl(item.url)" target="_blank" rel="noopener noreferrer" class="problem">

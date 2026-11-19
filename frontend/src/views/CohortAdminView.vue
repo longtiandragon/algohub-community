@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { provideStudentRemarks } from '@/composables/useStudentRemarks'
+import StudentRemarkCard from '@/components/school/StudentRemarkCard.vue'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ApiError, notifyError } from '@/api/client'
@@ -91,6 +93,7 @@ async function save() {
   } catch (e) { await failed(e, token) }
   finally { if (token === generation) saving.value = false }
 }
+const notes = provideStudentRemarks(() => current.value?.schoolId)
 </script>
 
 <template>
@@ -114,7 +117,7 @@ async function save() {
         <div v-for="member in members" :key="member.id" class="flex flex-wrap items-center justify-between gap-3 border-b border-line py-4">
           <div class="min-w-0">
             <div class="flex flex-wrap items-center gap-2 font-semibold text-ink">
-              <RouterLink v-if="member.status === 'APPROVED' && member.canEdit" :to="'/users/' + member.userId" class="text-brand-600">{{ member.displayName }}</RouterLink><span v-else>{{ member.displayName }}</span>
+              <RouterLink v-if="member.status === 'APPROVED' && member.canEdit" :to="'/users/' + member.userId" class="text-brand-600">{{ notes.names.value[member.userId] || member.displayName }}</RouterLink><span v-else>{{ member.displayName }}</span>
               <el-tag size="small">{{ memberStatusLabels[member.status] }}</el-tag>
             </div>
             <p class="mb-0 mt-1 break-words text-sm text-muted">{{ member.className || '未填写班级' }} · 学号 {{ member.studentNo || '未填写' }}</p>
@@ -124,7 +127,7 @@ async function save() {
               <el-button v-if="member.status !== 'APPROVED'" :disabled="saving" type="primary" @click="review(member, true)">通过</el-button>
               <el-button v-if="member.status !== 'REJECTED'" :disabled="saving" @click="review(member, false)">拒绝</el-button>
             </template>
-            <el-button v-if="member.canEdit" :disabled="saving" @click="editing = { ...member }">修改资料</el-button>
+            <el-button v-if="notes.manageable.value && member.status==='APPROVED' && member.canEdit" @click="notes.open(member.userId,member.displayName)">私人备注</el-button><el-button v-if="member.canEdit" :disabled="saving" @click="editing = { ...member }">修改资料</el-button>
           </div>
         </div>
       </div>
@@ -138,6 +141,7 @@ async function save() {
         <el-button native-type="submit" type="primary" :loading="saving">保存</el-button>
       </el-form>
     </ResponsiveDialog>
+  <StudentRemarkCard />
   </div>
 </template>
 

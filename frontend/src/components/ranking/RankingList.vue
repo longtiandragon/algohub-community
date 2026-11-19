@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import RemarkName from '@/components/school/RemarkName.vue'
 import type { RankingRow } from '@/api/types'
 import UserAvatar from '@/components/ui/UserAvatar.vue'
 
@@ -49,11 +50,11 @@ const affiliation = (row: RankingRow) => props.scope === 'GLOBAL' ? row.schoolNa
         data-test="ranking-row"
       >
         <span class="num rank">{{ row.rank }}<span class="sr-only"> 名</span></span>
-        <RouterLink :to="`/users/${row.userId}`" class="min-w-0 flex items-center gap-2.5 no-underline hover:underline md:gap-2.5" :aria-label="`查看 ${row.displayName} 的档案`">
-          <UserAvatar :src="row.avatarUrl" class="avatar" :class="tone(row)">{{ row.displayName.slice(0, 1) }}</UserAvatar>
+        <div class="min-w-0 flex items-center gap-2.5 no-underline hover:underline md:gap-2.5">
+          <RouterLink :to="`/users/${row.userId}`" :aria-label="`查看 ${row.displayName} 的档案`"><UserAvatar :src="row.avatarUrl" class="avatar" :class="tone(row)">{{ row.displayName.slice(0, 1) }}</UserAvatar></RouterLink>
           <span class="min-w-0 flex flex-col gap-px">
             <span class="flex items-center gap-1.5 text-[14.5px] text-ink">
-              <span class="truncate">{{ row.displayName }}</span>
+              <RemarkName :user-id="row.userId" :name="row.displayName" profile class="truncate" />
               <span v-if="row.userId === meId" class="me-tag">我</span>
               <span
                 v-if="row.hasUnverifiedSource"
@@ -64,7 +65,7 @@ const affiliation = (row: RankingRow) => props.scope === 'GLOBAL' ? row.schoolNa
             </span>
             <span class="truncate text-xs text-muted md:hidden">{{ affiliation(row) }}</span>
           </span>
-        </RouterLink>
+        </div>
         <span class="class-cell truncate text-[13px] text-body">{{ affiliation(row) }}</span>
         <span class="flex items-center gap-2.5">
           <span class="bar" aria-hidden="true"><span :style="{ width: width(row) }" /></span>

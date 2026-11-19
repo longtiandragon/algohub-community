@@ -27,7 +27,11 @@ import java.util.regex.Pattern;
 @Component
 public class WeeklySource {
     public record Task(String index, String key) {}
-    public record Meta(String platform, String ref, String title, String category, String url, List<Task> tasks) {}
+    public record Meta(String platform, String ref, String title, String category, String url, List<Task> tasks, String scoring) {
+        public Meta(String platform,String ref,String title,String category,String url,List<Task> tasks) {
+            this(platform,ref,title,category,url,tasks,null);
+        }
+    }
     public record Cell(boolean solved, Integer wrong, Double score, Long seconds) {}
     public record Row(String kind, Map<String,Cell> cells, Double score, long penalty, Integer sourceRank) {
         public Row(String kind, Map<String,Cell> cells, Double score, long penalty) {
@@ -79,7 +83,7 @@ public class WeeklySource {
 
     private static final String ATCODER_COOKIE_ENV = "ALGOHUB_ATCODER_STANDINGS_COOKIE_FILE";
     private final String atcoderCookiePath;
-    private final ConcurrentLruCache<CacheKey,Map<String,List<Row>>> atcoderBoards =
+    private final ConcurrentLruCache<CacheKey,AtCoderBoard> atcoderBoards =
             new ConcurrentLruCache<>(2, key -> atcoderBoard(key.contest()));
 
     @org.springframework.beans.factory.annotation.Autowired
@@ -112,7 +116,15 @@ public class WeeklySource {
         Contest contest = Contest.parse(meta.url());
         if (contest.platform() == Platform.ATCODER) {
             if (!atcoderStandingsEnabled()) return List.of();
-            return atcoderBoards.get(CacheKey.of(contest)).getOrDefault(handle.toLowerCase(Locale.ROOT), List.of());
+            AtCoderBoard board = atcoderBoards.get(CacheKey.of(contest));
+            String key = handle.toLowerCase(Locale.ROOT);
+            var timed = board.rows().getOrDefault(key, List.of());
+            var anchors = board.virtualAnchors().getOrDefault(key, List.of());
+            var practice = AtCoderPractice.read(http, meta, handle, atcoderCookie(), anchors);
+            if (practice == null) return List.copyOf(timed);
+            var all = new ArrayList<>(timed);
+            all.add(practice);
+            return List.copyOf(all);
         }
         Board board = boards.get(CacheKey.of(contest));
         return contest.platform() == Platform.CODEFORCES
@@ -139,7 +151,7 @@ public class WeeklySource {
         throw invalid();
     }
 
-    private static ApiException invalid() {
+    static ApiException invalid() {
         return new ApiException(ErrorKind.PARSE_ERROR, "源站尚未公开完整的比赛数据，或返回格式已变更");
     }
 
@@ -156,9 +168,13 @@ public class WeeklySource {
     }
 
     private static Meta metadata(Contest contest, String title, String category, List<Task> tasks) {
+        return metadata(contest,title,category,tasks,null);
+    }
+
+    private static Meta metadata(Contest contest, String title, String category, List<Task> tasks,String scoring) {
         if (title.isBlank() || tasks.isEmpty() || tasks.stream().map(Task::index).distinct().count() != tasks.size()
                 || tasks.stream().map(Task::key).distinct().count() != tasks.size()) throw invalid();
-        return new Meta(contest.platform().name(), contest.ref(), title, category, contest.url(), List.copyOf(tasks));
+        return new Meta(contest.platform().name(), contest.ref(), title, category, contest.url(), List.copyOf(tasks), scoring);
     }
 
     private Meta atcoderMeta(Contest contest) {
@@ -189,20 +205,22 @@ public class WeeklySource {
         }
     }
 
-    private static ApiException atcoderLoginRequired() {
+    static ApiException atcoderLoginRequired() {
         return new ApiException(ErrorKind.CREDENTIAL_INVALID, "AtCoder 榜单登录态不可用，请管理员重新授权");
     }
 
-    private Map<String,List<Row>> atcoderBoard(Contest contest) {
+    private record AtCoderBoard(Map<String,List<Row>> rows, Map<String,List<Map<Long,Long>>> virtualAnchors) {}
+
+    private AtCoderBoard atcoderBoard(Contest contest) {
         String cookie = atcoderCookie();
-        Map<String,List<Row>> rows = new HashMap<>();
-        readAtcoderBoard(contest, cookie, false, rows);
-        readAtcoderBoard(contest, cookie, true, rows);
-        return rows;
+        AtCoderBoard board = new AtCoderBoard(new HashMap<>(), new HashMap<>());
+        readAtcoderBoard(contest, cookie, false, board);
+        readAtcoderBoard(contest, cookie, true, board);
+        return board;
     }
 
     // Official scorer and ghost convention: img.atcoder.jp/public/16d83a8/js/standings.js
-    private void readAtcoderBoard(Contest contest, String cookie, boolean virtual, Map<String,List<Row>> rows) {
+    private void readAtcoderBoard(Contest contest, String cookie, boolean virtual, AtCoderBoard standings) {
         String url = contest.url() + (virtual ? "/standings/virtual/json" : "/standings/json");
         String body = http.get(Platform.ATCODER, url, Map.of(), cookie);
         if (body.stripLeading().startsWith("<")) {
@@ -233,6 +251,7 @@ public class WeeklySource {
             JsonNode total = entry.path("TotalResult");
             if (total.path("Count").asInt() <= 0) continue;
             Map<String,Cell> cells = new LinkedHashMap<>();
+            Map<Long,Long> anchors = new HashMap<>();
             JsonNode results = entry.path("TaskResults");
             if (!results.isObject() || !total.path("Score").isNumber() || !total.path("Elapsed").isIntegralNumber()) throw invalid();
             results.fields().forEachRemaining(task -> {
@@ -245,11 +264,15 @@ public class WeeklySource {
                 JsonNode wrong = result.path(score == 0 ? "Failure" : "Penalty");
                 JsonNode time = result.path("Elapsed");
                 boolean solved = result.get("Status").asInt() == 1 && score > 0;
+                if (virtual && score > 0 && time.isIntegralNumber() && result.path("SubmissionID").asLong() > 0) {
+                    anchors.put(result.get("SubmissionID").asLong(), time.asLong() / 1_000_000_000L);
+                }
                 cells.put(index,new Cell(solved, wrong.isIntegralNumber() ? wrong.intValue() : null, score,
                         score > 0 && time.isIntegralNumber() ? time.asLong() / 1_000_000_000L : null));
             });
             String handle = required(entry, "UserScreenName").toLowerCase(Locale.ROOT);
-            rows.computeIfAbsent(handle, unused -> new ArrayList<>()).add(new Row(virtual ? "VIRTUAL" : "OFFICIAL",
+            if (virtual) standings.virtualAnchors().computeIfAbsent(handle, unused -> new ArrayList<>()).add(anchors);
+            standings.rows().computeIfAbsent(handle, unused -> new ArrayList<>()).add(new Row(virtual ? "VIRTUAL" : "OFFICIAL",
                     cells,total.get("Score").asDouble() / 100,total.get("Elapsed").asLong() / 1_000_000_000L,rank(entry,"Rank")));
         }
     }
@@ -269,7 +292,9 @@ public class WeeklySource {
         Map<String,Row> entrants = new HashMap<>();
         for (var row : array(data, "rows")) {
             JsonNode party = row.path("party");
-            if (!"CONTESTANT".equals(party.path("participantType").asText()) || party.path("members").size() != 1) continue;
+            String participantType = party.path("participantType").asText();
+            if (!Set.of("CONTESTANT", "OUT_OF_COMPETITION").contains(participantType) || party.path("members").size() != 1) continue;
+            String kind = participantType.equals("CONTESTANT") ? "OFFICIAL" : "STAR";
             Map<String,Cell> cells = new LinkedHashMap<>();
             JsonNode results = array(row, "problemResults");
             if (results.size() != tasks.size()) throw invalid();
@@ -284,9 +309,9 @@ public class WeeklySource {
                 }
             }
             String name = required(party.get("members").get(0), "handle").toLowerCase(Locale.ROOT);
-            entrants.put(name, new Row("OFFICIAL", cells, row.path("points").asDouble(), row.path("penalty").asLong() * 60,rank(row,"rank")));
+            entrants.put(name, new Row(kind, cells, row.path("points").asDouble(), row.path("penalty").asLong() * 60,rank(row,"rank")));
         }
-        return new Board(metadata(contest,title,ContestCategoryRules.classifyCodeforces(title),tasks),scoring,0,entrants,Map.of());
+        return new Board(metadata(contest,title,ContestCategoryRules.classifyCodeforces(title),tasks,scoring),scoring,0,entrants,Map.of());
     }
 
     private static Integer rank(JsonNode row, String field) {
@@ -314,6 +339,7 @@ public class WeeklySource {
                         || !handle.equalsIgnoreCase(party.get("members").get(0).path("handle").asText())) continue;
                 String kind = switch (party.path("participantType").asText()) {
                     case "CONTESTANT" -> "OFFICIAL";
+                    case "OUT_OF_COMPETITION" -> "STAR";
                     case "VIRTUAL" -> "VIRTUAL";
                     case "PRACTICE" -> "PRACTICE";
                     default -> "";
@@ -332,13 +358,13 @@ public class WeeklySource {
         Row official = board.entrants().get(handle.toLowerCase(Locale.ROOT));
         if (official != null) {
             Map<String,Cell> cells = new LinkedHashMap<>(official.cells());
-            Row actual = summaries.get("OFFICIAL");
+            Row actual = summaries.get(official.kind());
             if (actual != null) actual.cells().forEach((index, cell) -> {
                 var source = cells.get(index);
                 if (source == null) cells.put(index, cell);
                 else if (cell.solved() && !source.solved()) cells.put(index, new Cell(true, source.wrong(), source.score(), source.seconds()));
             });
-            summaries.put("OFFICIAL", new Row("OFFICIAL", cells, official.score(), official.penalty(), official.sourceRank()));
+            summaries.put(official.kind(), new Row(official.kind(), cells, official.score(), official.penalty(), official.sourceRank()));
         }
         return List.copyOf(summaries.values());
     }

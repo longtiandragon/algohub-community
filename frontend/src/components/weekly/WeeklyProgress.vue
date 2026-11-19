@@ -1,10 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import type { TrainingStudent, WeeklyContest } from '@/api/weeklyTraining'
-import SectionCard from '@/components/ui/SectionCard.vue'
-import { platformName, platformLogoUrl } from '@/utils/platformBrand'
 
-const props = defineProps<{ contest: WeeklyContest; school: number }>()
+const props = defineProps<{ contest: WeeklyContest }>()
 const year = ref(''), incomplete = ref(false), expanded = ref(false)
 const grades = computed(() => Object.entries(props.contest.targets).sort(([a], [b]) => Number(b) - Number(a)).map(([year, goal]) => {
   const students = props.contest.students.filter(s => s.year === Number(year))
@@ -17,28 +15,9 @@ const labels: Record<TrainingStudent['status'], string> = {
 }
 </script>
 <template>
-  <SectionCard class="min-w-0">
-    <div class="flex flex-wrap items-start justify-between gap-3">
-      <div class="min-w-0">
-        <div class="mb-1.5 flex items-center gap-2 text-xs text-muted">
-          <img v-if="platformLogoUrl(contest.meta.platform)" :src="platformLogoUrl(contest.meta.platform)!" width="16" height="16" alt="" />
-          <span>{{ platformName(contest.meta.platform) }} · {{ contest.meta.category }}</span>
-        </div>
-        <h3 class="m-0 break-words text-lg font-semibold text-ink">{{ contest.meta.title }}</h3>
-      </div>
-      <RouterLink :to="'/weekly/' + school + '/' + contest.id" class="inline-flex min-h-9 items-center gap-1 text-sm font-semibold text-brand-600">
-        比赛详情 <i aria-hidden="true" class="i-lucide-arrow-up-right" />
-      </RouterLink>
-    </div>
-    <div class="my-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      <div v-for="g in grades" :key="g.year" class="rounded-lg bg-surface-2 px-3 py-2.5">
-        <div class="flex items-baseline justify-between gap-2"><strong>{{ g.year }} 级</strong><span class="text-xs text-muted">任选 {{ g.goal }} 题</span></div>
-        <div class="my-1.5 text-sm">达标 <b>{{ g.met }}</b> / {{ g.total }} 人</div>
-        <el-progress :percentage="g.total ? Math.round(100 * g.met / g.total) : 0" :show-text="false" :stroke-width="4" />
-      </div>
-    </div>
-    <details class="border-t border-line pt-2" @toggle="expanded = ($event.currentTarget as HTMLDetailsElement).open">
-      <summary class="w-fit cursor-pointer py-2 text-sm font-semibold text-ink">学生完成情况</summary>
+  <details class="px-5 pb-3" @toggle="expanded = ($event.currentTarget as HTMLDetailsElement).open">
+      <summary class="cursor-pointer py-2 text-sm font-semibold text-ink">学生完成情况</summary>
+      <div v-if="expanded" class="grade-progress"><span v-for="g in grades" :key="g.year"><strong>{{ g.year }} 级</strong> {{ g.met }}/{{ g.total }} 人达标</span></div>
       <template v-if="expanded">
         <div class="my-2 flex flex-wrap items-center gap-3">
           <el-select v-model="year" aria-label="按年级筛选" class="!w-36">
@@ -58,9 +37,12 @@ const labels: Record<TrainingStudent['status'], string> = {
         <p v-if="!filtered.length" class="text-sm text-muted">暂无符合条件的学生</p>
       </template>
     </details>
-  </SectionCard>
+
 </template>
 <style scoped>
+.grade-progress { display:flex; gap:8px; flex-wrap:wrap; }
+.grade-progress span { font-size:12px; background:var(--el-fill-color-light); padding:4px 8px; border-radius:5px; }
+.grade-progress strong { margin-right:4px; }
 th, td { padding: 8px 4px; }
 th:first-child { width: 34%; }
 </style>

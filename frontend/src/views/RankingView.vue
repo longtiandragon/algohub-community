@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { provideStudentRemarks } from '@/composables/useStudentRemarks'
+import StudentRemarkCard from '@/components/school/StudentRemarkCard.vue'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { get, notifyError } from '@/api/client'
@@ -241,6 +243,7 @@ function scrollToMe() {
   const target = row ?? document.querySelector('[data-test=my-position]')
   target?.scrollIntoView({ block: 'center', behavior: 'smooth' })
 }
+provideStudentRemarks(() => scope.value === 'SCHOOL' ? auth.approvedMembership?.schoolId : undefined)
 </script>
 
 <template>
@@ -355,6 +358,7 @@ function scrollToMe() {
       <span class="min-w-0 flex-1 truncate text-left text-sm">我 · {{ myRank.displayName }}</span>
       <span class="text-[13px]"><span class="num text-base font-semibold">{{ myRank.score ?? myRank.solved ?? 0 }}</span> {{ unit }}</span>
     </button>
+  <StudentRemarkCard />
   </div>
 </template>
 

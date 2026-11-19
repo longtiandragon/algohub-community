@@ -71,6 +71,18 @@ class WeeklyReportTest {
         assertThat(result.at("/problemStats/B/tried").asInt()).isOne();
         assertThat(find(result,"rows",hidden)).isNull();
 
+        var day=java.time.LocalDate.now();
+        var monday=day.with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY));
+        db.update("update weekly_training set week_start=? where id=?",monday,assignment);
+        JsonNode overview=json.valueToTree(report.overview(school,day,actor,true));
+        assertThat(overview.get("ranking").size()).isEqualTo(2);
+        assertThat(overview.at("/ranking/0/userId").asLong()).isEqualTo(student);
+        assertThat(overview.at("/ranking/0/solved").asInt()).isEqualTo(2);
+        assertThat(overview.at("/ranking/1/rank").asInt()).isEqualTo(2);
+        assertThat(json.valueToTree(report.overview(school,day.plusWeeks(1),actor,true)).get("ranking")).isEmpty();
+        JsonNode overall=json.valueToTree(report.overview(school,day.plusWeeks(1),actor,true,true));
+        assertThat(overall.get("ranking")).isEqualTo(overview.get("ranking"));
+        assertThat(overall.get("contests")).isEmpty();
         JsonNode studentView = json.valueToTree(report.list(school,actor,false).getFirst());
         assertThat(find(studentView,"students",hidden)).isNull();
         assertThat(find(studentView,"students",unbound).get("status").asText()).isEqualTo("UNBOUND");

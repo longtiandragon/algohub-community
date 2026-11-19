@@ -21,6 +21,7 @@ function harness(view, api, initialProps = {}, confirm = async () => {}) {
     if (name === 'vue') return { ...vue, onMounted: fn => mounted.push(fn), onBeforeUnmount: fn => cleanup.push(fn) }
     if (name === 'element-plus') return { ElMessage: { success: text => feedback.push(text) }, ElMessageBox: { confirm } }
     if (name === '@/api/client') return { ApiError, notifyError: error => feedback.push(error.message) }
+    if (name === '@/composables/useStudentRemarks') return { provideStudentRemarks: () => ({ names: vue.ref({}), manageable: vue.ref(false) }) }
     if (name === '@/api/cohortLeaders') return api
     if (name === '@/stores/auth') return { useAuthStore: () => ({ refreshMe: async () => feedback.push('identity-refreshed') }) }
     return {}
@@ -35,18 +36,17 @@ const member = { id: 10, userId: 11, displayName: 'Synthetic member', status: 'P
 
 // Old school results cannot replace the current list or populate candidates.
 {
-  const requests = [], searchReply = deferred()
+  const requests = []
   const h = harness('components/admin/CohortLeaderGrants.vue', {
     loadLeaderGrants: school => { const d = deferred(); requests.push({ school, ...d }); return d.promise },
-    searchLeaderCandidates: () => searchReply.promise,
   }, { schoolId: 1 })
-  const search = h.page.search()
+  h.page.picked.value = [{userId: 11, year: 2026}]
   h.props.schoolId = 2; await settle()
   requests[1].resolve([{ id: 2 }]); await settle()
-  requests[0].resolve([{ id: 1 }]); searchReply.resolve([{ userId: 11, enrollmentYear: 2026 }])
-  await search; await settle()
+  requests[0].resolve([{ id: 1 }])
+  await settle()
   assert.equal(h.page.grants.value[0].id, 2)
-  assert.equal(h.page.candidates.value.length, 0)
+  assert.equal(h.page.picked.value.length, 0)
   h.destroy()
 }
 // Duplicate saves share one mutation; a late result cannot affect another school.
@@ -55,8 +55,8 @@ const member = { id: 10, userId: 11, displayName: 'Synthetic member', status: 'P
   const h = harness('components/admin/CohortLeaderGrants.vue', {
     loadLeaderGrants: async () => [], grantCohortLeader: () => { calls++; return response.promise },
   }, { schoolId: 1 })
-  h.page.candidates.value = [{ userId: 11, enrollmentYear: 2026 }]
-  h.page.selected.value = 11; await settle()
+  h.page.picked.value = [{ userId: 11, year: 2026 }]
+  await settle()
   const one = h.page.assign(), two = h.page.assign()
   assert.equal(calls, 1)
   h.props.schoolId = 2; await settle()
@@ -75,18 +75,18 @@ const member = { id: 10, userId: 11, displayName: 'Synthetic member', status: 'P
   assert.equal(revoked, 0)
   h.destroy()
 }
-// Lost manager authorization clears existing grants/candidates on a failed search.
+// Lost manager authorization clears existing grants/candidates on a rejected grant.
 {
   const h = harness('components/admin/CohortLeaderGrants.vue', {
     loadLeaderGrants: async () => [{ id: 1 }],
-    searchLeaderCandidates: async () => { throw new ApiError('FORBIDDEN', 'manager revoked') },
+    grantCohortLeader: async () => { throw new ApiError('FORBIDDEN', 'manager revoked') },
   }, { schoolId: 1 })
   await settle()
-  h.page.candidates.value = [{ userId: 11, enrollmentYear: 2026 }]
-  await h.page.search()
+  h.page.picked.value = [{ userId: 11, year: 2026 }]
+  await settle(); await h.page.assign()
   assert.equal(h.page.grants.value.length, 0)
-  assert.equal(h.page.candidates.value.length, 0)
-  assert.equal(h.page.searching.value, false)
+  assert.equal(h.page.picked.value.length, 0)
+  assert.equal(h.page.saving.value, false)
   h.destroy()
 }
 // Out-of-order cohort responses cannot mix lists or edits.

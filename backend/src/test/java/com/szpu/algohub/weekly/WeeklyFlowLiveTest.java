@@ -38,6 +38,13 @@ class WeeklyFlowLiveTest {
         verify("https://ac.nowcoder.com/acm/contest/141882","NOWCODER","996283503","996283503","STAR",6);
     }
 
+    @Test
+    @EnabledIfSystemProperty(named="algohub.live-weekly-atcoder",matches="true")
+    @org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable(named="ALGOHUB_ATCODER_STANDINGS_COOKIE_FILE",matches=".+")
+    void atcoderVirtualAndPracticeCountTowardOneSchoolGoal() throws Exception {
+        verify("https://atcoder.jp/contests/abc480","ATCODER","longtian0828","longtian0828","VIRTUAL",5);
+    }
+
     private void verify(String url,String platform,String handle,String uid,String kind,int solved) throws Exception {
         String label=UUID.randomUUID().toString();
         long school=db.queryForObject("insert into school(name) values(?) returning id",Long.class,label);

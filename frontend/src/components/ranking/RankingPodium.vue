@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import RemarkName from '@/components/school/RemarkName.vue'
 import { computed } from 'vue'
 import type { RankingRow } from '@/api/types'
 import UserAvatar from '@/components/ui/UserAvatar.vue'
@@ -41,9 +42,7 @@ const score = (row: RankingRow) => row.score ?? row.solved ?? 0
         <span class="num badge" aria-hidden="true">{{ row.rank }}</span>
       </RouterLink>
       <span class="sr-only">第 {{ row.rank }} 名</span>
-      <RouterLink :to="`/users/${row.userId}`" class="no-underline hover:underline mt-1 max-w-full truncate text-[13.5px] text-ink font-semibold md:text-[15px]">
-        {{ row.displayName }}<template v-if="row.userId === meId">（我）</template>
-      </RouterLink>
+      <RemarkName :user-id="row.userId" :name="row.displayName" profile class="mt-1 max-w-full truncate text-ink font-semibold"><template v-if="row.userId === meId">（我）</template></RemarkName>
       <span v-if="scope === 'GLOBAL' || row.className" class="hidden max-w-full truncate text-xs text-muted md:block">{{ scope === 'GLOBAL' ? row.schoolName || '未加入学校' : row.className }}</span>
       <span class="mb-1 flex items-baseline gap-0.5 md:mb-1.5">
         <span class="num text-lg text-ink font-semibold md:text-[26px]">{{ score(row) }}</span>

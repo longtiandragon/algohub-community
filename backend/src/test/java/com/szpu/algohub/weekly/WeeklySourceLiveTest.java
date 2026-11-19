@@ -18,6 +18,17 @@ class WeeklySourceLiveTest {
     private final WeeklySource source = new WeeklySource(new PlatformHttpClient(properties,new PlatformRateLimiter(properties)));
 
     @Test
+    void identifiesDivisionsFromRealContestLinks() {
+        var contests = java.util.Map.of("2279", "Div.1", "2285", "Div.2", "2207", "Div.1+Div.2",
+                "2278", "Div.3", "2290", "Div.4");
+        contests.forEach((id, category) -> {
+            var meta = source.preview("https://codeforces.com/contest/" + id);
+            assertThat(meta.category()).as(meta.title()).isEqualTo(category);
+            assertThat(meta.tasks()).isNotEmpty();
+        });
+    }
+
+    @Test
     void codeforcesContestVirtualAndPracticeMatchActualStandings() {
         var meta = source.preview("https://codeforces.com/contest/2278");
         assertThat(meta.category()).isEqualTo("Div.3");

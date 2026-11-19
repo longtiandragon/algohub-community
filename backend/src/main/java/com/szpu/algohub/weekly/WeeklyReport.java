@@ -32,28 +32,63 @@ public class WeeklyReport {
     }
 
     public List<Map<String,Object>> list(long school, long actor, boolean manager) {
-        return load(school, null, actor, manager);
+        return load(school,null,null,actor,manager).stream().map(t->t.output(false,manager)).toList();
     }
 
     public Map<String,Object> detail(long school, long id, long actor, boolean manager) {
-        var matches = load(school, id, actor, manager);
+        var matches = load(school,id,null,actor,manager);
         if (matches.isEmpty()) throw ApiException.notFound("本校训练赛不存在");
-        return matches.getFirst();
+        return matches.getFirst().output(true,manager);
     }
 
-    private List<Map<String,Object>> load(long school, Long id, long actor, boolean manager) {
+    public Map<String,Object> overview(long school,java.time.LocalDate day,long actor,boolean manager) {
+        return overview(school, day, actor, manager, false);
+    }
+
+    public Map<String,Object> overview(long school,java.time.LocalDate day,long actor,boolean manager, boolean allTime) {
+        var monday=day.with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY));
+        var trainings=load(school,null,allTime ? null : monday,actor,manager);
+        record Entry(Student student,Set<String> tasks) {}
+        Map<Long,Entry> totals=new LinkedHashMap<>();
+        for(var t:trainings) {
+            if(!"ALL".equals(t.audience) || !"PUBLISHED".equals(t.status)) continue;
+            for(var student:t.students.values()) {
+                if(student.boardSolved.isEmpty()) continue;
+                var entry=totals.computeIfAbsent(student.id,unused->new Entry(student,new HashSet<>()));
+                for(var task:t.meta.tasks()) if(student.boardSolved.contains(task.index()))
+                    entry.tasks.add(t.meta.platform()+":"+task.key());
+            }
+        }
+        var ordered=totals.values().stream().sorted(Comparator.<Entry>comparingInt(e->e.tasks.size())
+                .reversed().thenComparingLong(e->e.student.id)).toList();
+        List<Map<String,Object>> ranking=new ArrayList<>();
+        int previous=-1,rank=0;
+        for(var entry:ordered) {
+            int solved=entry.tasks.size();
+            if(previous!=solved) rank=ranking.size()+1;
+            previous=solved;
+            ranking.add(Map.of("userId",entry.student.id,"name",entry.student.name,"year",entry.student.year,"rank",rank,"solved",solved));
+        }
+        return Map.of("weekStart",monday,"ranking",ranking,"contests",trainings.stream().filter(t -> monday.toString().equals(t.weekStart)).map(t->t.output(false,manager)).toList());
+    }
+
+    private List<Training> load(long school,Long id,java.time.LocalDate week,long actor,boolean manager) {
         Map<String,Object> params = new HashMap<>(Map.of("school",school,"actor",actor,"manager",manager));
         String filter = "";
         if (id != null) {
             params.put("id", id);
             filter = " and id = :id";
         }
+        if(week!=null) {params.put("week",week);filter+=" and week_start=:week";}
         Map<Long,Training> trainings = new LinkedHashMap<>();
-        db.query("select id,week_start,metadata::text,targets::text from weekly_training where school_id=:school"
+        db.query("""
+            select id,week_start,metadata::text,targets::text,audience,effective_status,publish_at,student_ids from weekly_effective_training
+            where school_id=:school and (:manager or (effective_status='PUBLISHED' and (audience='ALL' or :actor=any(student_ids))))
+            """
                 + filter + " order by week_start desc,id desc", params, (RowCallbackHandler) rs -> {
             long trainingId = rs.getLong("id");
             trainings.put(trainingId, new Training(trainingId, rs.getString("week_start"),
-                    read(rs.getString("metadata"), META), read(rs.getString("targets"), TARGETS)));
+                    read(rs.getString("metadata"), META), read(rs.getString("targets"), TARGETS),rs));
         });
         if (trainings.isEmpty()) return List.of();
         params.put("ids", trainings.keySet());
@@ -69,7 +104,7 @@ public class WeeklyReport {
                    ) as solved
             from weekly_training t
             join school_member m on m.school_id=t.school_id and m.status='APPROVED'
-              and jsonb_exists(t.targets,m.enrollment_year::text)
+              and jsonb_exists(t.targets,m.enrollment_year::text) and (t.audience='ALL' or m.user_id=any(t.student_ids))
             join app_user u on u.id=m.user_id and u.status='ACTIVE' and u.role='STUDENT'
             left join user_privacy privacy on privacy.user_id=u.id
             left join platform_account a on a.user_id=u.id and a.platform=t.platform
@@ -86,7 +121,7 @@ public class WeeklyReport {
             String rows = rs.getString("result");
             training.accept(rs, rows == null ? List.of() : read(rows, ROWS), rows != null, id != null);
         });
-        return trainings.values().stream().map(t -> t.output(id != null)).toList();
+        return List.copyOf(trainings.values());
     }
 
     private <T> T read(String value, TypeReference<T> type) {
@@ -105,7 +140,14 @@ public class WeeklyReport {
         final Map<Long,Student> students = new LinkedHashMap<>();
         boolean standingsRefreshFailed;
 
-        Training(long id, String weekStart, Meta meta, Map<Integer,Integer> targets) {
+        final String audience,status;
+        final java.time.OffsetDateTime publishAt;
+        final Long[] studentIds;
+        Training(long id,String weekStart,Meta meta,Map<Integer,Integer> targets,ResultSet rs) throws SQLException {
+            audience=rs.getString("audience");
+            status=rs.getString("effective_status");
+            publishAt=rs.getObject("publish_at",java.time.OffsetDateTime.class);
+            studentIds=(Long[])rs.getArray("student_ids").getArray();
             this.id = id;
             this.weekStart = weekStart;
             this.meta = meta;
@@ -133,7 +175,7 @@ public class WeeklyReport {
             }
             String[] known = (String[]) rs.getArray("solved").getArray();
             s.solved.addAll(Arrays.asList(known));
-            boolean boardVisible = detail && rs.getBoolean("visible");
+            boolean boardVisible = rs.getBoolean("visible");
             if (boardVisible) {
                 s.boardSolved.addAll(Arrays.asList(known));
                 s.boardTried.addAll(Arrays.asList(known));
@@ -146,17 +188,21 @@ public class WeeklyReport {
                         if (entry.getValue().solved()) s.boardSolved.add(entry.getKey());
                     }
                 }
-                if (boardVisible) s.addBoardRow(row);
+                if (detail && boardVisible) s.addBoardRow(row);
             }
         }
 
-        Map<String,Object> output(boolean detail) {
+        Map<String,Object> output(boolean detail,boolean manager) {
             Map<String,Object> out = new LinkedHashMap<>();
             out.put("id",id);
             out.put("weekStart",weekStart);
             out.put("meta",meta);
             out.put("targets",targets);
-            out.put("students",students.values().stream().map(s -> s.progress(targets.get(s.year))).toList());
+            out.put("audience",audience);
+            out.put("status",status);
+            out.put("publishAt",publishAt);
+            if(detail && manager) out.put("studentIds",studentIds);
+            out.put("students",!detail && audience.equals("SELECTED") ? List.of() : students.values().stream().map(s -> s.progress(targets.get(s.year))).toList());
             if (detail) {
                 List<Standing> timed = new ArrayList<>();
                 List<Standing> practice = new ArrayList<>();

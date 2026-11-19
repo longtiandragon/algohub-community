@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { provideStudentRemarks } from '@/composables/useStudentRemarks'
+import StudentRemarkCard from '@/components/school/StudentRemarkCard.vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { get, post, del, notifyError } from '@/api/client'
@@ -30,6 +32,7 @@ async function saveMember(){if(!editing.value)return;saving.value=true;try{await
 async function saveNotice(){if(!notice.value)return;saving.value=true;try{await post(`/school-admin/${schoolId.value}/announcements${notice.value.id?`/${notice.value.id}`:''}`,notice.value);notice.value=null;await load();ElMessage.success('已保存')}catch(e){notifyError(e)}finally{saving.value=false}}
 async function remove(n:Notice){const id=schoolId.value;try{await ElMessageBox.confirm(`删除公告「${n.title}」？`,'删除校内公告',{type:'warning'})}catch{return}try{await del(`/school-admin/${id}/announcements/${n.id}`);await load()}catch(e){notifyError(e)}}
 function search(){page.value=1;void load()}
+const notes = provideStudentRemarks(() => schoolId.value, () => auth.isAdmin && canMembers.value)
 </script>
 <template>
  <div class="page mx-auto max-w-[1100px] flex flex-col gap-4">
@@ -44,8 +47,8 @@ function search(){page.value=1;void load()}
     <div v-loading="loading" class="min-h-24">
      <el-empty v-if="!members.length && !loading" description="暂无符合条件的成员"/>
      <div v-for="m in members" :key="m.id" class="flex flex-wrap items-center justify-between gap-3 border-b border-line py-4">
-      <div class="min-w-0"><div class="font-semibold text-ink"><RouterLink v-if="m.status==='APPROVED' && (!m.platformAdmin || auth.isAdmin)" :to="`/users/${m.userId}`" class="text-brand-600">{{m.displayName}}</RouterLink><span v-else>{{m.displayName}}</span> <el-tag size="small">{{label[m.status]}}</el-tag></div><div class="text-sm text-muted break-words">{{m.enrollmentYear || '未填写'}} 级 · {{m.className || '未填写班级'}} · 学号 {{m.studentNo || '未填写'}}</div></div>
-      <div v-if="!m.platformAdmin || auth.isAdmin" class="flex gap-2"><template v-if="m.status==='PENDING'"><el-button size="small" type="primary" @click="review(m,true)">通过</el-button><el-button size="small" @click="review(m,false)">拒绝</el-button></template><el-button size="small" @click="editing={...m}">修改资料</el-button></div>
+      <div class="min-w-0"><div class="font-semibold text-ink"><RouterLink v-if="m.status==='APPROVED' && (!m.platformAdmin || auth.isAdmin)" :to="`/users/${m.userId}`" class="text-brand-600">{{notes.names.value[m.userId] || m.displayName}}</RouterLink><small v-if="notes.names.value[m.userId]"> {{m.displayName}}</small><span v-if="m.status!=='APPROVED' || (m.platformAdmin && !auth.isAdmin)">{{m.displayName}}</span> <el-tag size="small">{{label[m.status]}}</el-tag></div><div class="text-sm text-muted break-words">{{m.enrollmentYear || '未填写'}} 级 · {{m.className || '未填写班级'}} · 学号 {{m.studentNo || '未填写'}}</div></div>
+      <div v-if="!m.platformAdmin || auth.isAdmin" class="flex gap-2"><template v-if="m.status==='PENDING'"><el-button size="small" type="primary" @click="review(m,true)">通过</el-button><el-button size="small" @click="review(m,false)">拒绝</el-button></template><el-button v-if="notes.manageable.value && m.status==='APPROVED' && !m.platformAdmin" size="small" @click="notes.open(m.userId,m.displayName)">私人备注</el-button><el-button size="small" @click="editing={...m}">修改资料</el-button></div>
      </div>
     </div>
     <el-pagination v-model:current-page="page" :page-size="50" :total="total" layout="prev, pager, next" class="mt-4" @current-change="load"/>
@@ -57,5 +60,6 @@ function search(){page.value=1;void load()}
   </template>
   <ResponsiveDialog :model-value="!!editing" title="修改成员资料" @update:model-value="v=>{if(!v)editing=null}"><el-form v-if="editing" label-position="top"><el-form-item label="入学年级"><el-input-number v-model="editing.enrollmentYear" :min="2000" :max="2100"/></el-form-item><el-form-item label="班级"><el-input v-model="editing.className" maxlength="64"/></el-form-item><el-form-item label="学号"><el-input v-model="editing.studentNo" maxlength="32"/></el-form-item><el-button type="primary" :loading="saving" @click="saveMember">保存</el-button></el-form></ResponsiveDialog>
   <ResponsiveDialog :model-value="!!notice" title="校内公告" @update:model-value="v=>{if(!v)notice=null}"><el-form v-if="notice" label-position="top"><el-form-item label="标题"><el-input v-model="notice.title" maxlength="120"/></el-form-item><el-form-item label="内容"><el-input v-model="notice.content" type="textarea" :rows="6" maxlength="10000"/></el-form-item><el-form-item label="发布"><el-switch v-model="notice.published"/></el-form-item><el-button type="primary" :loading="saving" @click="saveNotice">保存</el-button></el-form></ResponsiveDialog>
- </div>
+ <StudentRemarkCard />
+  </div>
 </template>

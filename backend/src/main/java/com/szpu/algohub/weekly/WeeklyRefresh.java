@@ -61,9 +61,10 @@ class WeeklyRefresh {
     void discover() {
         db.update("""
             insert into weekly_account_result(training_id,account_id)
-            select t.id,a.id from weekly_training t
+            select t.id,a.id from weekly_effective_training t
             join school_member m on m.school_id=t.school_id and m.status='APPROVED'
               and jsonb_exists(t.targets,m.enrollment_year::text)
+              and t.effective_status='PUBLISHED' and (t.audience='ALL' or m.user_id=any(t.student_ids))
             join app_user u on u.id=m.user_id and u.status='ACTIVE' and u.role='STUDENT'
             join platform_account a on a.user_id=u.id and a.platform=t.platform and a.ownership_status='VERIFIED'
             where t.platform in ('CODEFORCES','NOWCODER') or (t.platform='ATCODER' and ?)
@@ -77,11 +78,12 @@ class WeeklyRefresh {
         var jobs=db.query("""
             with job as (
                 select r.training_id,r.account_id,t.metadata,a.handle,a.platform_uid
-                from weekly_account_result r join weekly_training t on t.id=r.training_id
+                from weekly_account_result r join weekly_effective_training t on t.id=r.training_id
                 join platform_account a on a.id=r.account_id and a.ownership_status='VERIFIED' and a.platform=t.platform
                 join app_user u on u.id=a.user_id and u.status='ACTIVE' and u.role='STUDENT'
                 join school_member m on m.user_id=u.id and m.school_id=t.school_id and m.status='APPROVED'
                     and jsonb_exists(t.targets,m.enrollment_year::text)
+              and t.effective_status='PUBLISHED' and (t.audience='ALL' or m.user_id=any(t.student_ids))
                 where r.next_attempt<=now() and (t.platform <> 'ATCODER' or ?)
                 order by r.next_attempt,r.training_id,r.account_id limit 1 for update of r skip locked
             )
@@ -95,11 +97,15 @@ class WeeklyRefresh {
         try {
             var meta=json.readValue(j.meta(),WeeklySource.Meta.class);
             List<WeeklySource.Row> rows=source.results(meta,j.handle(),j.uid());
+            if ("CODEFORCES".equals(meta.platform()) && meta.scoring()==null) {
+                var current=source.preview(meta.url());
+                if(current.scoring()!=null) db.update("update weekly_training set metadata=jsonb_set(metadata,'{scoring}',to_jsonb(?::text)) where id=? and metadata->>'scoring' is null",current.scoring(),j.training());
+            }
             // Compare the lease before writing: a slower worker cannot overwrite a newer worker.
             db.update("""
                 update weekly_account_result r set result=?::jsonb,failed=false,refreshed_at=now(),
                     next_attempt=now()+case when t.week_start >= current_date-7 then interval '20 minutes' else interval '1 day' end
-                from weekly_training t where t.id=r.training_id and r.training_id=? and r.account_id=? and r.next_attempt=?
+                from weekly_effective_training t where t.id=r.training_id and r.training_id=? and r.account_id=? and r.next_attempt=?
                 """,json.writeValueAsString(rows),j.training(),j.account(),j.lease());
         } catch(Exception ex) {
             db.update("""

@@ -341,6 +341,10 @@ export function post<T>(url: string, body?: unknown): Promise<T> {
   return unwrap<T>(http.post(url, body ?? {}))
 }
 
+export function put<T>(url: string, body: unknown): Promise<T> {
+  return unwrap<T>(http.put(url, body))
+}
+
 export function del<T>(url: string): Promise<T> {
   return unwrap<T>(http.delete(url))
 }
@@ -366,17 +370,14 @@ export function isEmailGateError(error: unknown): boolean {
   )
 }
 
-/** 统一的错误提示：保留后端的错误分类，便于区分登录失效、限流与源站异常。 */
+/** 页面提示使用可读文案，调用方可通过 ApiError.kind 判断错误类型。 */
 export function notifyError(error: unknown) {
   if (error instanceof ApiError && error.kind === 'SESSION_CHANGED') return
   if (isEmailGateError(error)) {
     emailGateHandler?.()
     return
   }
-  if (error instanceof ApiError) {
-    // 错误分类（UPSTREAM_ERROR 这类）只在开发时附上，线上只给同学看得懂的那句话
-    ElMessage.error(import.meta.env.DEV ? `${error.message}（${error.kind}）` : error.message)
-  } else if (error instanceof Error && error.message) {
+  if (error instanceof Error && error.message) {
     ElMessage.error(error.message)
   } else {
     ElMessage.error('操作失败，请稍后再试')

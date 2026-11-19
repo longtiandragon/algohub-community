@@ -45,6 +45,12 @@ class WeeklyAtCoderStandingsTest {
         String future = user.formatted("{\"standings.virtualElapsed\":-3}");
         when(http.get(Platform.ATCODER,BASE + "/standings/virtual/json", Map.of(), "test=fake"))
                 .thenReturn(header + String.join(",",virtual,ghost,regular,future) + "]}");
+        String empty = "<small class='contest-duration'><time>2026-10-17 21:00:00+0900</time>"
+                + "<time>2026-10-17 22:40:00+0900</time></small><p>No Submissions</p>";
+        for (String handle : List.of("learner", "another")) {
+            when(http.get(Platform.ATCODER, BASE + "/submissions?f.User=" + handle + "&lang=en&page=1", Map.of(), "test=fake"))
+                    .thenReturn(empty);
+        }
         var rows = source.results(META,"learner",null);
         assertThat(rows).extracting(WeeklySource.Row::kind).containsExactly("OFFICIAL","VIRTUAL");
         assertThat(rows.getLast().cells().get("A")).isEqualTo(new WeeklySource.Cell(true,1,100d,66L));
@@ -74,7 +80,11 @@ class WeeklyAtCoderStandingsTest {
         var rows = source.results(source.preview(BASE),"longtian0828",null);
         var vp = rows.stream().filter(r -> r.kind().equals("VIRTUAL")).findFirst().orElseThrow();
         var solved = vp.cells().entrySet().stream().filter(e -> e.getValue().solved()).map(Map.Entry::getKey).sorted().toList();
-        assertThat(solved).as("ABC480 VP verified tasks").isNotEmpty();
+        assertThat(solved).as("ABC480 VP verified tasks").containsExactly("A", "B", "C");
+        var practice = rows.stream().filter(r -> r.kind().equals("PRACTICE")).findFirst().orElseThrow();
+        assertThat(practice.cells().get("D")).isEqualTo(new WeeklySource.Cell(true, 1, 400d, null));
+        assertThat(practice.cells().get("E")).isEqualTo(new WeeklySource.Cell(true, 0, 450d, null));
+        assertThat(practice.cells()).doesNotContainKeys("A", "B", "C");
         System.out.println("ABC480 VP source rank " + vp.sourceRank() + ", solved " + solved);
     }
 }

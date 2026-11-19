@@ -72,6 +72,7 @@ class WeeklyPublishingTest {
     }
 
     @Test void bothRolesPublishAcrossGradesAndTemplatesStayWithinSchool() throws Exception {
+        mvc.perform(post(endpoint(school)+"/defaults").with(as(leader)).contentType(MediaType.APPLICATION_JSON).content(BODY)).andExpect(status().isOk());
         long id=publish(leader,BODY);
         mvc.perform(get(endpoint(school)+"/preview").param("url",URL).with(as(manager)))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.targets['2025']").value(2));
@@ -89,6 +90,42 @@ class WeeklyPublishingTest {
         mvc.perform(get(endpoint(school)+"/preview").param("url",URL).with(as(leader))).andExpect(status().isForbidden());
     }
 
+    @Test void scheduledInvitationOnlyOpensAtDeadlineAndNeverEntersWeeklyRank() throws Exception {
+        String time=java.time.OffsetDateTime.now().plusHours(1).toString();
+        var assignment=new WeeklyController.Assignment(URL,Map.of(2025,2),null,"SELECTED",List.of(student),"SCHEDULED",java.time.OffsetDateTime.parse(time));
+        long id=publish(manager,json.writeValueAsString(assignment));
+        String detail=endpoint(school)+"/"+id;
+        mvc.perform(get(detail).with(as(student))).andExpect(status().isNotFound());
+        mvc.perform(get(detail).with(as(manager))).andExpect(jsonPath("$.data.status").value("SCHEDULED"))
+            .andExpect(jsonPath("$.data.studentIds[0]").value(student));
+        db.update("update weekly_training set publish_at=now()-interval '1 second' where id=?",id);
+        mvc.perform(get(detail).with(as(student))).andExpect(status().isOk()).andExpect(jsonPath("$.data.status").value("PUBLISHED"));
+        long other=member(school,2025);
+        mvc.perform(get(detail).with(as(other))).andExpect(status().isNotFound());
+        db.update("insert into platform_account(user_id,platform,handle,ownership_status) values(?,'CODEFORCES','demo','VERIFIED')",student);
+        refresh.discover();
+        db.update("""
+            update weekly_account_result set result='[{"kind":"OFFICIAL","cells":{"A":{"solved":true}},"penalty":0}]'::jsonb
+            where training_id=?
+            """,id);
+        mvc.perform(get(endpoint(school)+"/overview").param("weekStart",java.time.LocalDate.now().toString()).with(as(manager)))
+            .andExpect(jsonPath("$.data.ranking.length()").value(0)).andExpect(jsonPath("$.data.contests[0].students.length()").value(0));
+        mvc.perform(get(detail).with(as(manager))).andExpect(jsonPath("$.data.students[0].solved").value(1));
+        mvc.perform(delete(detail).with(as(manager))).andExpect(status().isConflict());
+    }
+
+    @Test void draftIsEditableAndCancellableAndDefaultsAreExplicit() throws Exception {
+        var assignment=new WeeklyController.Assignment(URL,Map.of(2026,2),null,"ALL",List.of(),"DRAFT",null);
+        long id=publish(manager,json.writeValueAsString(assignment));
+        String detail=endpoint(school)+"/"+id;
+        mvc.perform(get(detail).with(as(student))).andExpect(status().isNotFound());
+        mvc.perform(put(detail).with(as(leader)).contentType(MediaType.APPLICATION_JSON)
+            .content(json.writeValueAsString(assignment))).andExpect(status().isOk());
+        mvc.perform(get(endpoint(school)+"/preview").param("url",URL).with(as(manager)))
+            .andExpect(jsonPath("$.data.targets").isEmpty());
+        mvc.perform(delete(detail).with(as(leader))).andExpect(status().isOk());
+        mvc.perform(get(detail).with(as(manager))).andExpect(status().isNotFound());
+    }
     @Test void atcoderBoardJobsRespectServiceAuthorization() throws Exception {
         String url="https://atcoder.jp/contests/abc480";
         var at=new WeeklySource.Meta("ATCODER","abc480","AtCoder Beginner Contest 480","ABC",url,meta.tasks());

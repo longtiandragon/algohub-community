@@ -7,6 +7,7 @@ export interface TrainingSchool {
   manage: boolean
 }
 export interface ContestMeta {
+  scoring?: string | null
   title: string
   platform: string
   ref: string
@@ -69,3 +70,18 @@ export const previewContest = (school: number, url: string) =>
 export const publishContest = (school: number, url: string, targets: Targets, weekStart: string) =>
   post<number>('/weekly/' + school, { url, targets, weekStart })
 export const loadDetail = (school: number, id: number) => get<ContestDetail>('/weekly/' + school + '/' + id)
+
+export interface WeeklyItem extends WeeklyContest {
+  audience: 'ALL' | 'SELECTED'
+  status: 'PUBLISHED' | 'DRAFT' | 'SCHEDULED'
+  publishAt: string | null
+}
+export interface WeeklyRankingRow {
+  rank: number
+  userId: number
+  name: string
+  year: number
+  solved: number
+}
+export const loadWeeklyOverview = (school: number, weekStart: string, allTime = false) =>
+  get<{ contests: WeeklyItem[]; ranking: WeeklyRankingRow[] }>('/weekly/' + school + '/overview', { weekStart, allTime })
