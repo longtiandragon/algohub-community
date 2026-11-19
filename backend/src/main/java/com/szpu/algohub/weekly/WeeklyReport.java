@@ -46,6 +46,14 @@ public class WeeklyReport {
     }
 
     public Map<String,Object> overview(long school,java.time.LocalDate day,long actor,boolean manager, boolean allTime) {
+        return overview(school,day,actor,manager,allTime,false);
+    }
+
+    Map<String,Object> homeOverview(long school,java.time.LocalDate day,long actor,boolean manager,boolean allTime) {
+        return overview(school,day,actor,manager,allTime,true);
+    }
+
+    private Map<String,Object> overview(long school,java.time.LocalDate day,long actor,boolean manager,boolean allTime,boolean compact) {
         var monday=day.with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY));
         var trainings=load(school,null,allTime ? null : monday,actor,manager);
         record Entry(Student student,Set<String> tasks) {}
@@ -69,7 +77,7 @@ public class WeeklyReport {
             previous=solved;
             ranking.add(Map.of("userId",entry.student.id,"name",entry.student.name,"realName",entry.student.realName,"year",entry.student.year,"rank",rank,"solved",solved));
         }
-        return Map.of("weekStart",monday,"ranking",ranking,"contests",trainings.stream().filter(t -> monday.toString().equals(t.weekStart)).map(t->t.output(false,manager,actor)).toList());
+        return Map.of("weekStart",monday,"ranking",ranking,"contests",trainings.stream().filter(t -> monday.toString().equals(t.weekStart)).map(t->compact ? t.card(actor) : t.output(false,manager,actor)).toList());
     }
 
     private List<Training> load(long school,Long id,java.time.LocalDate week,long actor,boolean manager) {
@@ -190,6 +198,18 @@ public class WeeklyReport {
                 }
                 if (detail && boardVisible) s.addBoardRow(row);
             }
+        }
+
+        Map<String,Object> card(long actor) {
+            Map<String,Object> out = new LinkedHashMap<>();
+            out.put("id",id);
+            out.put("meta",Map.of("title",meta.title(),"platform",meta.platform(),"category",meta.category()));
+            out.put("audience",audience);
+            out.put("status",status);
+            out.put("publishAt",publishAt);
+            Student viewer = students.get(actor);
+            if (viewer != null) out.put("myProgress",Map.of("goal",targets.get(viewer.year)));
+            return out;
         }
 
         Map<String,Object> output(boolean detail,boolean manager,long actor) {

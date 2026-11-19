@@ -74,6 +74,12 @@ class WeeklyPublishingTest {
     @Test void bothRolesPublishAcrossGradesAndTemplatesStayWithinSchool() throws Exception {
         mvc.perform(post(endpoint(school)+"/defaults").with(as(leader)).contentType(MediaType.APPLICATION_JSON).content(BODY)).andExpect(status().isOk());
         long id=publish(leader,BODY);
+        mvc.perform(get("/api/weekly/home").param("weekStart","2026-11-16").param("school",String.valueOf(foreign)).with(as(student)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.schools[0].id").value(school))
+            .andExpect(jsonPath("$.data.contests[0].id").value(id))
+            .andExpect(jsonPath("$.data.contests[0].myProgress.goal").value(2))
+            .andExpect(jsonPath("$.data.contests[0].students").doesNotExist());
         mvc.perform(get(endpoint(school)+"/preview").param("url",URL).with(as(manager)))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.targets['2025']").value(2));
         publish(manager,BODY.replace("11-18","11-23"));

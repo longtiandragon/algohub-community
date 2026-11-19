@@ -14,6 +14,7 @@ try {
   browser = await puppeteer.launch({ executablePath, headless: true })
   const page = await browser.newPage()
   const errors = []
+  const homeRequests = []
   page.on('pageerror', error => errors.push(error.message))
   let management = true, submitted = null, scheduled = null, savedDefaults = null
   const meta = { platform: 'CODEFORCES', ref: '2278', title: 'Codeforces Round 1131 (Div. 3)', category: 'Div.3',
@@ -34,7 +35,7 @@ try {
     let data = [], status = 200
     if (path === '/api/auth/refresh') data = { accessToken: 'mock', user }
     else if (path === '/api/me') data = user
-    else if (path === '/api/weekly/schools') data = [{ id: 1, name: '测试学校', manage: management }]
+    else if (path === '/api/weekly/schools') { homeRequests.push(path); data = [{ id: 1, name: '测试学校', manage: management }] }
     else if (path === '/api/weekly/1/preview') data = { meta, targets, history: submitted ? [{weekStart:submitted.weekStart,status:'PUBLISHED'}] : [], years: [2026, 2025, 2024, 2023], audience: 'ALL', lastStudentIds: [] }
     else if (path === '/api/schools/1/students/directory') {
       const roster = Array.from({length: 65}, (_, i) => ({
@@ -45,9 +46,10 @@ try {
       data = {items: roster.slice((page-1)*size, page*size), total: roster.length, groups: [{year: 2026, className: '计算机一班', count: 65}]}
     }
     else if (path === '/api/weekly/1/defaults') { savedDefaults = JSON.parse(req.postData()); data = true }
-    else if (path === '/api/weekly/1/overview') {
+    else if (path === '/api/weekly/home') {
+      homeRequests.push(path)
       const currentWeek = url.searchParams.get('weekStart')
-      data = { contests: [], ranking: [] }
+      data = { schools:[{id:1,name:'测试学校',manage:management}], contests: [], ranking: [] }
       if (submitted?.weekStart === currentWeek) {
         data.contests.push(contest())
         data.ranking.push({userId:4, year:2026, name:'测试甲', realName:'王明远', solved:5, rank:1})
@@ -75,6 +77,7 @@ try {
   await page.setViewport({ width: 1280, height: 860 })
   await page.goto(base + '/weekly')
   await waitText('该周暂无已发布的训练赛')
+  assert.deepEqual(homeRequests, ['/api/weekly/home'])
   const nav = await page.$$eval('nav[aria-label="主导航"] a', links => links.map(link => link.pathname))
   const accounts = nav.indexOf('/accounts')
   assert.ok(accounts >= 0)

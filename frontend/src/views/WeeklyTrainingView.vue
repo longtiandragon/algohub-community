@@ -1,15 +1,17 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 import { notifyError } from '@/api/client'
-import { loadSchools, loadWeeklyOverview, weekMonday, type TrainingSchool, type WeeklyItem, type WeeklyRankingRow } from '@/api/weeklyTraining'
+import { loadWeeklyHome, weekMonday, type TrainingSchool, type WeeklyCard, type WeeklyRankingRow } from '@/api/weeklyTraining'
 import { campusDate } from '@/utils/statistics'
 import { platformName, platformLogoUrl } from '@/utils/platformBrand'
 import PageHeader from '@/components/ui/PageHeader.vue'
 import WeekPicker from '@/components/weekly/WeekPicker.vue'
 
 const route = useRoute(), router = useRouter()
-const schools = ref<TrainingSchool[]>([]), schoolLoading = ref(true), schoolError = ref(false)
+const auth = useAuthStore()
+const schools = ref<TrainingSchool[]>([]), schoolLoading = ref(true)
 const school = computed(() => schools.value.find(s => s.id === Number(route.query.school)) ?? schools.value[0])
 const week = computed(() => {
   const value = String(route.query.week ?? '')
@@ -17,31 +19,35 @@ const week = computed(() => {
   return weekMonday(valid ? value : campusDate())
 })
 const allTime = ref(false)
-const items = ref<WeeklyItem[]>([]), ranking = ref<WeeklyRankingRow[]>([])
+const items = ref<WeeklyCard[]>([]), ranking = ref<WeeklyRankingRow[]>([])
 const contests = computed(() => items.value.filter(c => c.status === 'PUBLISHED'))
 const unpublished = computed(() => items.value.filter(c => c.status !== 'PUBLISHED'))
 const loading = ref(false), error = ref(false)
-let token = 0, disposed = false
-onBeforeUnmount(() => { disposed = true; token++ })
-async function initialize() {
-  schoolLoading.value = true; schoolError.value = false
-  try { const result = await loadSchools(); if (!disposed) schools.value = result }
-  catch (e) { if (!disposed) { schoolError.value = true; notifyError(e) } }
-  finally { if (!disposed) schoolLoading.value = false }
-}
-async function refresh() {
-  const id = school.value?.id, request = ++token
-  items.value = []; ranking.value = []; error.value = false
-  if (!id) { loading.value = false; return }
-  loading.value = true
+const recent = new Map<boolean, { fetched: number; data: Awaited<ReturnType<typeof loadWeeklyHome>> }>()
+let token = 0
+onBeforeUnmount(() => { token++ })
+async function refresh(reuse = false) {
+  const request = ++token
+  loading.value = true; error.value = false
   try {
-    const result = await loadWeeklyOverview(id, week.value, allTime.value)
-    if (request === token) { items.value = result.contests; ranking.value = result.ranking }
-  } catch (e) { if (request === token) { error.value = true; notifyError(e) } }
-  finally { if (request === token) loading.value = false }
+    const mode = allTime.value
+    const cached = reuse ? recent.get(mode) : undefined
+    const fresh = cached && Date.now() - cached.fetched < 15000
+    const result = fresh ? cached.data : await loadWeeklyHome(Number(route.query.school) || undefined, week.value, allTime.value)
+    if (request !== token) return
+    if (!fresh) recent.set(mode, { fetched: Date.now(), data: result })
+    schools.value = result.schools; items.value = result.contests; ranking.value = result.ranking
+  } catch (e) {
+    if (request === token) { error.value = true; notifyError(e) }
+  } finally {
+    if (request === token) { loading.value = false; schoolLoading.value = false }
+  }
 }
-onMounted(initialize)
-watch([() => school.value?.id, week, allTime], refresh)
+watch([() => auth.me?.id, () => route.query.school, week], () => {
+  recent.clear(); items.value = []; ranking.value = []; schools.value = []; schoolLoading.value = true
+  void refresh()
+}, { immediate: true })
+watch(allTime, () => refresh(true))
 function select(value: {school?: number; week?: string}) { void router.replace({query:{...route.query,...value}}) }
 function publishLink(edit?: number) { return {path:'/weekly/' + school.value?.id + '/publish',query:{week:week.value,...(edit ? {edit} : {})}} }
 function publishedDate(value: string | null) {
@@ -54,7 +60,7 @@ function publishedDate(value: string | null) {
       <template #actions><RouterLink v-if="school?.manage" class="publish-link" :to="publishLink()"><i class="i-lucide-plus" />布置训练赛</RouterLink></template>
     </PageHeader>
     <div v-if="schoolLoading" v-loading="true" class="min-h-32" />
-    <div v-else-if="schoolError" role="alert">学校读取失败 <el-button text @click="initialize">重试</el-button></div>
+    <div v-else-if="error && !school" role="alert">训练赛读取失败 <el-button text @click="refresh()">重试</el-button></div>
     <el-empty v-else-if="!school" description="暂无可查看的学校" />
     <template v-else>
       <div class="toolbar">
@@ -62,10 +68,10 @@ function publishedDate(value: string | null) {
         <el-select v-if="schools.length > 1" :model-value="school.id" aria-label="选择学校" class="!w-48" @change="select({school:$event})">
           <el-option v-for="s in schools" :key="s.id" :value="s.id" :label="s.name" />
         </el-select>
-        <button type="button" class="reload" aria-label="刷新完成情况" :disabled="loading" @click="refresh"><i class="i-lucide-refresh-cw" /></button>
+        <button type="button" class="reload" aria-label="刷新完成情况" :disabled="loading" @click="refresh()"><i class="i-lucide-refresh-cw" /></button>
       </div>
-      <div v-if="error" role="alert">训练赛读取失败 <el-button text @click="refresh">重试</el-button></div>
-      <div v-else v-loading="loading" class="panels">
+      <div v-if="error" role="alert">训练赛读取失败 <el-button text @click="refresh()">重试</el-button></div>
+      <div v-else class="panels">
         <div class="stack">
           <section class="panel">
             <header class="section-title"><h2>{{ week === weekMonday() ? '本周比赛' : '该周比赛' }}</h2><span>{{ contests.length }} 场</span></header>
@@ -85,7 +91,7 @@ function publishedDate(value: string | null) {
             </RouterLink>
           </section>
         </div>
-        <section class="panel ranking">
+        <section v-loading="loading" class="panel ranking">
           <header class="section-title"><h2>累计过题榜</h2><div class="range-switch" aria-label="排行榜统计范围"><button :aria-pressed="!allTime" @click="allTime=false">本周</button><button :aria-pressed="allTime" @click="allTime=true">累计</button></div></header>
           <p class="note">{{ allTime ? "所有训练周" : "所选训练周" }} · 仅统计全校开放训练赛，同题去重</p>
           <table v-if="ranking.length"><thead><tr><th>名次</th><th>学生</th><th>年级</th><th>累计过题</th></tr></thead>

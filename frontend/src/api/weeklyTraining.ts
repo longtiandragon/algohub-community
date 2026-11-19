@@ -89,3 +89,10 @@ export interface WeeklyRankingRow {
 }
 export const loadWeeklyOverview = (school: number, weekStart: string, allTime = false) =>
   get<{ contests: WeeklyItem[]; ranking: WeeklyRankingRow[] }>('/weekly/' + school + '/overview', { weekStart, allTime })
+
+export interface WeeklyCard extends Pick<WeeklyItem, 'id' | 'audience' | 'status' | 'publishAt'> {
+  meta: Pick<ContestMeta, 'title' | 'platform' | 'category'>
+  myProgress?: { goal: number }
+}
+export const loadWeeklyHome = (school: number | undefined, weekStart: string, allTime: boolean) =>
+  get<{ schools: TrainingSchool[]; contests: WeeklyCard[]; ranking: WeeklyRankingRow[] }>('/weekly/home', { school, weekStart, allTime })

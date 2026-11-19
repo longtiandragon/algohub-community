@@ -77,6 +77,21 @@ public class WeeklyController {
         return ApiResult.ok(report.list(school,actor,publishing.managerOrMember(actor,school)));
     }
 
+    @GetMapping("/home")
+    public ApiResult<?> home(@RequestParam(required=false) Long school, @RequestParam LocalDate weekStart,
+                             @RequestParam(defaultValue="false") boolean allTime) {
+        long actor = CurrentUser.requireId();
+        var schools = publishing.schools(actor);
+        if (schools.isEmpty()) return ApiResult.ok(Map.of("schools", schools, "contests", List.of(), "ranking", List.of()));
+        var selected = schools.stream().filter(s -> school != null && ((Number)s.get("id")).longValue() == school)
+            .findFirst().orElse(schools.getFirst());
+        var data = report.homeOverview(((Number)selected.get("id")).longValue(), weekStart, actor,
+            Boolean.TRUE.equals(selected.get("manage")), allTime);
+        var result = new java.util.LinkedHashMap<>(data);
+        result.put("schools", schools);
+        return ApiResult.ok(result);
+    }
+
     @GetMapping("/{school}/overview")
     public ApiResult<?> overview(@PathVariable long school,@RequestParam LocalDate weekStart, @RequestParam(defaultValue="false") boolean allTime) {
         long actor=CurrentUser.requireId();
