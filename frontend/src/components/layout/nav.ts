@@ -28,18 +28,18 @@ export const NAV_GROUPS: NavGroup[] = [
       { path: '/', label: '数据总览', short: '总览', icon: 'i-lucide-house' },
       { path: '/ranking', label: '刷题排行', short: '排行', icon: 'i-lucide-trophy' },
       { path: '/profile', label: '个人档案', short: '档案', icon: 'i-lucide-chart-column' },
-      { path: '/accounts', label: '平台账号', short: '账号', icon: 'i-lucide-link', pending: true }
+      { path: '/accounts', label: '平台账号', short: '账号', icon: 'i-lucide-link', pending: true },
+      { path: '/activity', label: '公开动态', short: '动态', icon: 'i-lucide-activity' },
+      { path: '/weekly', label: '每周训练赛', short: '训练', icon: 'i-lucide-calendar-days' }
     ]
   },
   {
     title: '更多',
     items: [
       { path: '/announcements', label: '公告与资源', short: '公告', icon: 'i-lucide-megaphone' },
-      { path: '/activity', label: '公开动态', short: '动态', icon: 'i-lucide-activity' },
       { path: '/friends', label: '关注与好友', short: '好友', icon: 'i-lucide-users-round' },
       { path: '/messages', label: '消息', short: '消息', icon: 'i-lucide-mail' },
       { path: '/reminders', label: '目标与提醒', short: '提醒', icon: 'i-lucide-bell' },
-      { path: '/weekly', label: '每周训练赛', short: '训练', icon: 'i-lucide-calendar-days' },
       { path: '/contests', label: '比赛日历', short: '比赛', icon: 'i-lucide-calendar' },
       { path: '/settings', label: '设置与安全', short: '设置', icon: 'i-lucide-settings' }
     ]
@@ -78,7 +78,7 @@ export function isNavActive(item: NavItem, path: string) {
  * 动态、比赛、设置、管理在路由里标了 mobileParent: '/me'，在这些页面时「我的」高亮。
  */
 export const TAB_ITEMS: NavItem[] = [
-  ...NAV_GROUPS[0].items,
+  ...NAV_GROUPS[0].items.slice(0, 4),
   { path: '/me', label: '我的', short: '我的', icon: 'i-lucide-user-round' }
 ]
 

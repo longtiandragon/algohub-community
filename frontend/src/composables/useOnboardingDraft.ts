@@ -8,6 +8,7 @@ export function useOnboardingDraft() {
   const pending = auth.me?.memberships.find(m => m.status === 'PENDING')
   const temporaryName = !auth.me?.onboardingCompleted && /^新同学(?:_[0-9A-F]{8})?$/.test(auth.me?.displayName ?? '')
   const initial = { schoolChosen: false, schoolId: pending?.schoolId ?? null as number | null, inviteCode: '',
+    realName: auth.me?.realName ?? '',
     displayName: temporaryName ? '' : auth.me?.displayName ?? '',
     enrollmentYear: auth.me?.enrollmentYear ?? pending?.enrollmentYear ?? null as number | null,
     className: auth.me?.className ?? pending?.className ?? '', studentNo: auth.me?.studentNo ?? '' }
@@ -22,7 +23,7 @@ export function useOnboardingDraft() {
   function clear() {
     cleared = true
     for (const key of Object.keys(draft)) (draft as Record<string, unknown>)[key] = undefined
-    Object.assign(draft, { schoolChosen: false, schoolId: null, inviteCode: '', displayName: '', enrollmentYear: null, className: '', studentNo: '' })
+    Object.assign(draft, { schoolChosen: false, schoolId: null, inviteCode: '', displayName: '', realName: '', enrollmentYear: null, className: '', studentNo: '' })
     try { sessionStorage.removeItem(key) } catch { /* Private browsing. */ }
   }
   const unregister = registerOnboardingDraftCleanup(clear)

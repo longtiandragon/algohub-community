@@ -33,14 +33,19 @@ class RequiredGradeTest {
         }
         mvc.perform(post("/api/schools/select").header("Authorization","Bearer "+token).contentType("application/json")
             .content("{\"schoolId\":"+school+",\"enrollmentYear\":2025,\"className\":\"一班\",\"studentNo\":\"20250001\"}"))
+            .andExpect(status().isBadRequest());
+        assertThat(schools.myMemberships(id)).isEmpty();
+        mvc.perform(post("/api/schools/select").header("Authorization","Bearer "+token).contentType("application/json")
+            .content("{\"schoolId\":"+school+",\"enrollmentYear\":2025,\"className\":\"一班\",\"studentNo\":\"20250001\",\"realName\":\" 李同学 \"}"))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.enrollmentYear").value(2025));
         var member=schools.myMemberships(id).getFirst();
+        assertThat(member.getRealName()).isEqualTo("李同学");
         assertThat(member.getEnrollmentYear()).isEqualTo(2025);
         mvc.perform(post("/api/schools/memberships/"+member.getId()).header("Authorization","Bearer "+token)
             .contentType("application/json").content("{\"enrollmentYear\":null}" )).andExpect(status().isBadRequest());
         assertThat(schools.myMemberships(id).getFirst().getEnrollmentYear()).isEqualTo(2025);
     }
     @Test void inviteJoinWithoutGradeIsRejectedBeforeCreatingMembership() {
-        assertThatThrownBy(()->schools.applyByInviteCode(-1L,"test",null,null,null)).hasMessageContaining("请选择入学年级");
+        assertThatThrownBy(()->schools.applyByInviteCode(-1L,"test",null,null,null,null)).hasMessageContaining("请选择入学年级");
     }
 }

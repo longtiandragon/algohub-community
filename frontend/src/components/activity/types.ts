@@ -1,5 +1,6 @@
 /** 校内动态的一条：某位同学第一次通过某题（时间是已知最早的通过时间）。 */
 export interface FeedItem {
+  realName?: string | null
   id: number
   following?: boolean
   userId: number

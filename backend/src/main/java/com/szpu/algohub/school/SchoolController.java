@@ -27,20 +27,27 @@ public class SchoolController {
 
     public record JoinRequest(@NotBlank @jakarta.validation.constraints.Size(max = 64) String inviteCode, Integer enrollmentYear,
                               @NotBlank(message="请填写班级") @jakarta.validation.constraints.Size(max = 64) String className,
-                              @NotBlank(message="请填写学号") @jakarta.validation.constraints.Size(max = 32) String studentNo) {
+                              @NotBlank(message="请填写学号") @jakarta.validation.constraints.Size(max = 32) String studentNo,
+                                 @NotBlank(message="请填写真实姓名") @jakarta.validation.constraints.Size(max=64) String realName) {
     }
 
     public record ProfileRequest(Integer enrollmentYear,
                                  @NotBlank(message="请填写班级") @jakarta.validation.constraints.Size(max = 64) String className,
-                                 @NotBlank(message="请填写学号") @jakarta.validation.constraints.Size(max = 32) String studentNo) {
+                                 @NotBlank(message="请填写学号") @jakarta.validation.constraints.Size(max = 32) String studentNo,
+                                 @NotBlank(message="请填写真实姓名") @jakarta.validation.constraints.Size(max=64) String realName) {
     }
+
+    public record AdminProfileRequest(Integer enrollmentYear,
+                                      @NotBlank @jakarta.validation.constraints.Size(max = 64) String className,
+                                      @NotBlank @jakarta.validation.constraints.Size(max = 32) String studentNo) {}
 
     /** inviteCode 选填：填对直接加入，不填进待审核 */
     public record SelectionRequest(@jakarta.validation.constraints.NotNull Long schoolId,
                                    @jakarta.validation.constraints.Size(max = 64) String inviteCode,
                                    @jakarta.validation.constraints.NotNull(message="请选择入学年级") Integer enrollmentYear,
                                    @NotBlank @jakarta.validation.constraints.Size(max=64) String className,
-                                   @NotBlank @jakarta.validation.constraints.Size(max=32) String studentNo) {}
+                                   @NotBlank @jakarta.validation.constraints.Size(max=32) String studentNo,
+                                 @NotBlank(message="请填写真实姓名") @jakarta.validation.constraints.Size(max=64) String realName) {}
 
     /** 选学校用的列表：只有名称和简称，不带邀请码 */
     public record SchoolOption(Long id, String name, String shortName) {
@@ -51,7 +58,7 @@ public class SchoolController {
 
     @PostMapping("/select")
     public ApiResult<SchoolMember> select(@Valid @RequestBody SelectionRequest request) {
-        return ApiResult.ok(schoolService.selectSchoolWithProfile(CurrentUser.requireId(), request.schoolId(), request.inviteCode(), request.enrollmentYear(), request.className(), request.studentNo()));
+        return ApiResult.ok(schoolService.selectSchoolWithProfile(CurrentUser.requireId(), request.schoolId(), request.inviteCode(), request.enrollmentYear(), request.className(), request.studentNo(), request.realName()));
     }
 
     @GetMapping
@@ -67,12 +74,12 @@ public class SchoolController {
     @PostMapping("/join")
     public ApiResult<SchoolMember> join(@Valid @RequestBody JoinRequest request) {
         return ApiResult.ok(schoolService.applyByInviteCode(CurrentUser.requireId(), request.inviteCode(),
-                request.enrollmentYear(), request.className(), request.studentNo()));
+                request.enrollmentYear(), request.className(), request.studentNo(), request.realName()));
     }
 
     @PostMapping("/memberships/{id}")
     public ApiResult<SchoolMember> updateProfile(@PathVariable Long id, @Valid @RequestBody ProfileRequest request) {
         return ApiResult.ok(schoolService.updateProfile(CurrentUser.requireId(), id,
-                request.enrollmentYear(), request.className(), request.studentNo()));
+                request.enrollmentYear(), request.className(), request.studentNo(), request.realName()));
     }
 }

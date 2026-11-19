@@ -86,9 +86,11 @@ class IdentityBoundaryTest {
         String invite=jdbc.queryForObject("select invite_code from school where id=?",String.class,school);
         var member=schools.selectSchool(user.getId(),school,invite);
         assertThat(member.getStatus()).isEqualTo("APPROVED");
-        assertThat(schools.updateProfile(user.getId(),member.getId(),2024,"一班","security-student").getClassName()).isEqualTo("一班");
+        assertThat(schools.updateProfile(user.getId(),member.getId(),2024,"一班","security-student","陈同学").getClassName()).isEqualTo("一班");
         long admin=jdbc.queryForObject("select id from app_user where role='ADMIN' order by id limit 1",Long.class);
-        assertThat(schools.adminUpdateProfile(member.getId(),2025,"二班","security-student",admin).getEnrollmentYear()).isEqualTo(2025);
+        var edited = schools.adminUpdateProfile(member.getId(),2025,"二班","security-student",admin);
+        assertThat(edited.getEnrollmentYear()).isEqualTo(2025);
+        assertThat(edited.getRealName()).isEqualTo("陈同学");
         assertThat(jdbc.queryForObject("select count(*) from auth_event where user_id=? and event='ADMIN_MEMBER_PROFILE_CHANGED'",Integer.class,admin)).isPositive();
     }
     /** 绑定/更换登录邮箱的验证码和登录码一样计输错：重发不清零，累计 10 次锁定这个邮箱 */

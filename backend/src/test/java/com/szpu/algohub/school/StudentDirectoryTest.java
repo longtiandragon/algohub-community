@@ -42,28 +42,19 @@ class StudentDirectoryTest {
 
     private RequestPostProcessor as(long id) { return user(new LoginUser(users.findById(id))); }
 
-    @Test void ownerAndSchoolIsolateRemarksIncludingDirectorySearch() throws Exception {
+    @Test void restrictsSchoolDirectoryAndSearchesSubmittedNames() throws Exception {
         long school=school(), foreign=school();
-        long alice=student(school,"01"), bob=student(school,"02"), target=student(school,"03");
-        long outsider=student(foreign,"04");
-        manager(school,alice);
-        manager(school,bob);
-        String base="/api/schools/"+school+"/students";
-        mvc.perform(put(base+"/"+target+"/remark").with(as(alice)).contentType(MediaType.APPLICATION_JSON)
-            .content("{\"remark\":\" 私人名 \"}")).andExpect(status().isOk());
-        mvc.perform(get(base+"/remarks").with(as(alice))).andExpect(jsonPath("$.data['"+target+"']").value("私人名"));
-        for(long viewer:new long[]{bob,target,outsider})
-            mvc.perform(get(base+"/remarks").with(as(viewer))).andExpect(jsonPath("$.data").isEmpty());
-        mvc.perform(get(base+"/directory").with(as(alice)).param("q","私人名"))
-            .andExpect(jsonPath("$.data.total").value(1)).andExpect(jsonPath("$.data.items[0].studentNo").value("03"));
-        mvc.perform(get(base+"/directory").with(as(bob)).param("q","私人名")).andExpect(jsonPath("$.data.total").value(0));
-        mvc.perform(get(base+"/directory").with(as(target))).andExpect(status().isForbidden());
-        mvc.perform(get(base+"/directory").with(as(outsider))).andExpect(status().isForbidden());
-        mvc.perform(put(base+"/"+outsider+"/remark").with(as(alice)).contentType(MediaType.APPLICATION_JSON)
-            .content("{\"remark\":\"x\"}")).andExpect(status().isNotFound());
-        mvc.perform(put(base+"/"+target+"/remark").with(as(alice)).contentType(MediaType.APPLICATION_JSON)
-            .content("{\"remark\":\"\"}")).andExpect(status().isOk());
-        mvc.perform(get(base+"/remarks").with(as(alice))).andExpect(jsonPath("$.data").isEmpty());
+        long manager=student(school,"01"), target=student(school,"02"), outsider=student(foreign,"03");
+        manager(school,manager);
+        db.update("update school_member set real_name=? where user_id in (?,?)","陈同学",target,outsider);
+        String directory="/api/schools/"+school+"/students/directory";
+        mvc.perform(get(directory).with(as(manager)).param("q","陈同"))
+            .andExpect(jsonPath("$.data.total").value(1))
+            .andExpect(jsonPath("$.data.items[0].realName").value("陈同学"))
+            .andExpect(jsonPath("$.data.items[0].name").value("昵称02"))
+            .andExpect(jsonPath("$.data.items[0].remark").doesNotExist());
+        mvc.perform(get(directory).with(as(target))).andExpect(status().isForbidden());
+        mvc.perform(get(directory).with(as(outsider))).andExpect(status().isForbidden());
     }
 
     @Test void paginatesOrdersAndHydratesOnlyEligibleStudents() throws Exception {

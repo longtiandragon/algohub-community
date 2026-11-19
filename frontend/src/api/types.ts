@@ -40,6 +40,7 @@ export interface Me {
   bio: string | null
   hasPassword: boolean
   onboardingCompleted: boolean
+  realName: string | null
   profileCompletionRequired: boolean
   nicknameNeedsReview: boolean
   enrollmentYear: number | null
@@ -264,6 +265,7 @@ export interface SyncTask {
 }
 
 export interface RankingRow {
+  realName?: string | null
   rank: number
   position: number
   userId: number

@@ -41,7 +41,7 @@ class LegacyProfileCompletionTest {
             .contentType("application/json").content("{\"enrollmentYear\":2026,\"className\":\" \",\"studentNo\":\"changed\"}"))
             .andExpect(status().isBadRequest());
         mvc.perform(post("/api/me/complete-academic-profile").with(user(new LoginUser(users.findById(id))))
-            .contentType("application/json").content("{\"enrollmentYear\":2026,\"className\":\" 计应1班 \",\"studentNo\":\"changed\",\"schoolId\":999999}"))
+            .contentType("application/json").content("{\"enrollmentYear\":2026,\"className\":\" 计应1班 \",\"studentNo\":\"changed\",\"schoolId\":999999,\"realName\":\" 李同学 \"}"))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.profileCompletionRequired").value(false))
             .andExpect(jsonPath("$.data.enrollmentYear").value(2025)).andExpect(jsonPath("$.data.studentNo").value("250001"));
         assertThat(schools.myMemberships(id)).hasSize(1);
@@ -50,17 +50,21 @@ class LegacyProfileCompletionTest {
         assertThat(schools.myMemberships(id).getFirst().getStatus()).isEqualTo("APPROVED");
         assertThat(db.queryForObject("select handle from platform_account where id=?", String.class, account)).isEqualTo("unchanged-handle");
         assertThat(users.findById(id).getDisplayName()).isEqualTo("旧昵称");
-        onboarding.completeAcademic(id, new AuthDtos.AcademicRequest(2026,"试图改班","试图改学号"));
+        onboarding.completeAcademic(id, new AuthDtos.AcademicRequest(2026,"试图改班","试图改学号","试图改名"));
         assertThat(auth.me(id).className()).isEqualTo("计应1班");
+        assertThat(auth.me(id).realName()).isEqualTo("李同学");
     }
 
     @Test void personalFallbackAndUnboundUsersDoNotNeedSchoolSelection() {
         Long id = legacy("STUDENT");
-        onboarding.completeAcademic(id, new AuthDtos.AcademicRequest(2024,"一班","240001"));
+        onboarding.completeAcademic(id, new AuthDtos.AcademicRequest(2024,"一班","240001",null));
         assertThat(auth.me(id).profileCompletionRequired()).isFalse();
         assertThat(schools.myMemberships(id)).isEmpty();
         Long pending = db.queryForObject("insert into school_member(user_id,school_id,status) values (?,?,'PENDING') returning id",Long.class,id,schools.defaultSchool().getId());
         sqlSession.clearCache();
+        assertThat(auth.me(id).profileCompletionRequired()).isTrue();
+        assertThatThrownBy(() -> onboarding.completeAcademic(id, new AuthDtos.AcademicRequest(2024,"一班","240001"," "))).hasMessageContaining("真实姓名");
+        onboarding.completeAcademic(id, new AuthDtos.AcademicRequest(2024,"一班","240001","林同学"));
         assertThat(auth.me(id).profileCompletionRequired()).isFalse();
         assertThat(auth.me(id).className()).isEqualTo("一班");
         assertThat(schools.myMemberships(id).getFirst().getId()).isEqualTo(pending);

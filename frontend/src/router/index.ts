@@ -235,11 +235,11 @@ router.beforeEach(async (to, from) => {
   if (to.meta.admin && !auth.isAdmin) {
     return { path: '/' }
   }
+  if (auth.me?.profileCompletionRequired) return to.name === 'complete-academic-profile' ? true : { name: 'complete-academic-profile' }
+  if (to.name === 'complete-academic-profile') return { path: '/' }
   if ((to.name === 'weekly-training' || to.name === 'weekly-standings' || to.name === 'weekly-publish') && auth.isSchoolAdmin) return true
   if (to.name === 'school-admin') return auth.isSchoolAdmin ? true : { path: '/' }
   if (to.name === 'cohort-admin') return auth.isCohortLeader ? true : { path: '/' }
-  if (auth.me?.profileCompletionRequired) return to.name === 'complete-academic-profile' ? true : { name: 'complete-academic-profile' }
-  if (to.name === 'complete-academic-profile') return { path: '/' }
   if (!auth.me?.onboardingCompleted && to.name !== 'select-school' && to.name !== 'complete-profile') return { name: 'select-school' }
   if (to.name === 'complete-profile') {
     let chosen = false

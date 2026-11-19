@@ -32,6 +32,14 @@ class CampusRankingTest {
     @Autowired StatisticsService statistics;
     @Autowired com.szpu.algohub.activity.ActivityMapper activity;
 
+    @Test void registeredNameIsOnlyReturnedInSchoolScope() {
+        jdbc.update("update school_member set real_name=? where user_id=? and school_id=?", "校内姓名", me, school);
+        for (String scope : new String[]{"SCHOOL", "GLOBAL"}) {
+            var row = (Map<?, ?>) service.ranking(me,scope,"TOTAL","FIRST_AC",null,null,null,200).get("myRank");
+            assertThat(row.get("realName")).isEqualTo(scope.equals("SCHOOL") ? "校内姓名" : null);
+        }
+    }
+
     @Test void unverifiedLuoguDetailsCannotInflateVerifiedCumulativeTotals() {
         Long verified = jdbc.queryForObject("insert into platform_account(user_id,platform,handle,ownership_status) values (?,'LUOGU','ranking-verified-luogu','VERIFIED') returning id", Long.class, me);
         Long unverified = jdbc.queryForObject("insert into platform_account(user_id,platform,handle,ownership_status) values (?,'LUOGU','ranking-unverified-luogu','UNVERIFIED') returning id", Long.class, me);

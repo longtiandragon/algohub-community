@@ -93,7 +93,7 @@ public class AuthService {
 
         if (StringUtils.hasText(request.inviteCode())) {
             schoolService.applyByInviteCode(user.getId(), request.inviteCode(),
-                    request.enrollmentYear(), request.className(), request.studentNo());
+                    request.enrollmentYear(), request.className(), request.studentNo(), request.realName());
         }
         audit(user.getId(), user.getUsername(), "REGISTER", ip, userAgent, null);
         return user;
@@ -249,7 +249,7 @@ public class AuthService {
         return new MeView(user.getId(), user.getUsername(), user.getDisplayName(), user.getEmail(),
                 user.getRole(), user.getAvatarUrl(), user.getBio(), passwordEnabled(user),
                 user.getLastLoginAt(), user.getCreatedAt(), memberships, toView(privacy(userId)), bindings, userMapper.verifiedEmailCount(userId)>0, user.isOnboardingCompleted(),
-                academic.enrollmentYear(), academic.className(), academic.studentNo(),
+                academic.enrollmentYear(), academic.className(), academic.studentNo(), academic.realName(),
                 "STUDENT".equals(user.getRole()) && user.isOnboardingCompleted() && !academic.complete(), user.isNicknameNeedsReview(), userMapper.managedSchools(userId), cohortLeaders.scopes(userId));
     }
 

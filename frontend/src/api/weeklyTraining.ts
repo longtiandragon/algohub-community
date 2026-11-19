@@ -22,6 +22,7 @@ export interface ContestPreview {
   targets: Targets
 }
 export interface TrainingStudent {
+  realName?: string | null
   userId: number
   name: string
   year: number
@@ -43,6 +44,7 @@ export interface ScoreCell {
   seconds: number | null
 }
 export interface ScoreRow {
+  realName?: string | null
   userId: number
   name: string
   kind: 'OFFICIAL' | 'STAR' | 'VIRTUAL' | 'PRACTICE'
@@ -77,6 +79,7 @@ export interface WeeklyItem extends WeeklyContest {
   publishAt: string | null
 }
 export interface WeeklyRankingRow {
+  realName?: string | null
   rank: number
   userId: number
   name: string

@@ -14,7 +14,7 @@ const groups = ref<{year: number | null; className: string | null; count: number
 const pageSize = 30
 let request = 0, session = 0, timer: ReturnType<typeof setTimeout> | undefined
 const label = computed(() => {
-  const names = props.modelValue.map(s => s.remark || s.name)
+  const names = props.modelValue.map(s => s.realName || s.name)
   return names.slice(0,3).join('、') + (names.length > 3 ? '等 ' + names.length + ' 名学生' : '')
 })
 function eligible(s: DirectoryStudent) { return !props.years || props.years.includes(String(s.year)) }
@@ -23,7 +23,7 @@ const classes = computed(() => [...new Set(groups.value.filter(g=>year.value==nu
 const selectedRows = computed(() => [...draft.value.values()].filter(s => {
   const q = term.value.toLocaleLowerCase()
   return (year.value==null || s.year===year.value) && (className.value===undefined || className.value===(s.className||'')) &&
-    (!q || [s.name,s.username,s.remark,s.studentNo,s.className].some(v=>v?.toLocaleLowerCase().includes(q)))
+    (!q || [s.name,s.username,s.realName,s.studentNo,s.className].some(v=>v?.toLocaleLowerCase().includes(q)))
 }))
 const count = computed(() => selectedOnly.value ? selectedRows.value.length : total.value)
 const pageCount = computed(() => Math.max(1,Math.ceil(count.value/pageSize)))
@@ -97,7 +97,7 @@ function accept(){emit('update:modelValue',[...draft.value.values()].filter(elig
   <button class="picker-trigger" type="button" :disabled="disabled" aria-haspopup="dialog" @click="start"><i class="i-lucide-users" /> {{ label || '选择学生' }} <i class="i-lucide-chevron-down" /></button>
   <ResponsiveDialog v-model="open" title="选择本校学生" :width="740" fullscreen-on-mobile>
     <div class="filters">
-      <el-input v-model="search" placeholder="备注名、昵称、用户名或学号" aria-label="搜索学生" clearable />
+      <el-input v-model="search" placeholder="姓名、昵称、用户名或学号" aria-label="搜索学生" clearable />
       <select v-model="year" aria-label="筛选年级"><option :value="undefined">全部年级</option><option v-for="y in yearsList" :key="y" :value="y">{{y}} 级</option></select>
       <select v-model="className" aria-label="筛选班级"><option :value="undefined">全部班级</option><option v-for="c in classes" :key="c" :value="c">{{c || '未填写班级'}}</option></select>
     </div>
@@ -114,7 +114,7 @@ function accept(){emit('update:modelValue',[...draft.value.values()].filter(elig
         </div>
         <label v-for="s in members" :key="s.userId" :class="{muted:!eligible(s)}">
           <input :type="multiple?'checkbox':'radio'" :checked="draft.has(s.userId)" :disabled="!eligible(s) || bulk" @click="choose(s)" />
-          <span><b>{{s.remark || s.name}}</b><small v-if="s.remark">{{s.name}}</small></span>
+          <span><b>{{s.realName || s.name}}</b><small v-if="s.realName && s.realName !== s.name">{{s.name}}</small></span>
           <span>{{s.studentNo || '未填写学号'}}<small v-if="!eligible(s)">未启用该年级</small></span>
         </label>
       </section>

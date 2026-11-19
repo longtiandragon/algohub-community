@@ -1,7 +1,4 @@
 <script setup lang="ts">
-import { provideStudentRemarks } from '@/composables/useStudentRemarks'
-import StudentRemarkCard from '@/components/school/StudentRemarkCard.vue'
-import RemarkName from '@/components/school/RemarkName.vue'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { loadDetail, type ContestDetail, type ScoreCell, type ScoreRow } from '@/api/weeklyTraining'
@@ -66,7 +63,6 @@ function kindName(kind: ScoreRow['kind']) {
   return { OFFICIAL: '正式参赛', VIRTUAL: '虚拟参赛', PRACTICE: '补题', STAR: '打星参赛' }[kind]
 }
 function toggleMark(key: string) { openMark.value = openMark.value === key ? undefined : key }
-provideStudentRemarks(() => Number(route.params.school))
 </script>
 <template>
   <div class="page mx-auto min-w-0 max-w-[1200px]">
@@ -94,9 +90,9 @@ provideStudentRemarks(() => Number(route.params.school))
               <tr v-for="(row, i) in group.rows" :key="row.userId + ':' + row.kind + ':' + i">
                 <td>{{ row.kind === 'PRACTICE' ? '' : row.rank ?? '—' }}</td>
                 <th scope="row" class="name">
-                  <span v-if="row.kind === 'PRACTICE'" aria-label="补题">*</span><RemarkName :user-id="row.userId" :name="row.name">
+                  <span v-if="row.kind === 'PRACTICE'" aria-label="补题">*</span>{{ row.realName || row.name }}
                   <button v-if="row.kind === 'VIRTUAL' || row.kind === 'STAR'" type="button" class="mark" :title="kindName(row.kind)" :aria-label="kindName(row.kind)"
-                    @click="toggleMark(group.label + i)" @blur="openMark = undefined">{{ row.kind === 'VIRTUAL' ? '#' : '打星' }}</button></RemarkName>
+                    @click="toggleMark(group.label + i)" @blur="openMark = undefined">{{ row.kind === 'VIRTUAL' ? '#' : '打星' }}</button>
                   <small v-if="openMark === group.label + i" role="status">{{ kindName(row.kind) }}</small>
                 </th>
                 <td>{{ Object.values(row.cells).filter(c => c.solved).length }}</td>
@@ -116,7 +112,6 @@ provideStudentRemarks(() => Number(route.params.school))
         </div>
       </section>
     </template>
-  <StudentRemarkCard />
   </div>
 </template>
 <style scoped>

@@ -29,7 +29,7 @@ const labels: Record<TrainingStudent['status'], string> = {
         <table class="w-full table-fixed text-left text-sm">
           <thead class="text-muted"><tr><th>学生</th><th>年级</th><th>已过 / 目标</th><th>状态</th></tr></thead>
           <tbody><tr v-for="s in filtered" :key="s.userId" class="border-t border-line">
-            <td class="break-words">{{ s.name }}</td><td>{{ s.year }}</td>
+            <td class="break-words">{{ s.realName || s.name }}</td><td>{{ s.year }}</td>
             <td>{{ s.solved > 0 || ['MET','PENDING'].includes(s.status) ? s.solved : '—' }} / {{ s.goal }}</td>
             <td :class="s.status === 'MET' ? 'text-success-ink' : 'text-muted'">{{ labels[s.status] }}</td>
           </tr></tbody>

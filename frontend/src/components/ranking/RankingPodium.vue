@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import RemarkName from '@/components/school/RemarkName.vue'
 import { computed } from 'vue'
 import type { RankingRow } from '@/api/types'
 import UserAvatar from '@/components/ui/UserAvatar.vue'
@@ -22,6 +21,9 @@ const order = computed(() => {
 const MEDAL = ['gold', 'silver', 'bronze']
 const medal = (row: RankingRow) => MEDAL[Math.min(row.rank, 3) - 1]
 const score = (row: RankingRow) => row.score ?? row.solved ?? 0
+function studentName(row: RankingRow) {
+  return (props.scope === 'SCHOOL' && row.realName) || row.displayName
+}
 </script>
 
 <template>
@@ -37,12 +39,12 @@ const score = (row: RankingRow) => row.score ?? row.solved ?? 0
       class="min-w-0 flex flex-col items-center gap-1 md:gap-1.5"
       :data-me-anchor="row.userId === meId ? '' : undefined"
     >
-      <RouterLink :to="`/users/${row.userId}`" :aria-label="`查看 ${row.displayName} 的档案`" class="avatar" :class="`medal-${medal(row)}`">
-        <UserAvatar :src="row.avatarUrl" class="face">{{ row.displayName.slice(0, 1) }}</UserAvatar>
+      <RouterLink :to="`/users/${row.userId}`" :aria-label="`查看 ${studentName(row)} 的档案`" class="avatar" :class="`medal-${medal(row)}`">
+        <UserAvatar :src="row.avatarUrl" class="face">{{ studentName(row).slice(0, 1) }}</UserAvatar>
         <span class="num badge" aria-hidden="true">{{ row.rank }}</span>
       </RouterLink>
       <span class="sr-only">第 {{ row.rank }} 名</span>
-      <RemarkName :user-id="row.userId" :name="row.displayName" profile class="mt-1 max-w-full truncate text-ink font-semibold"><template v-if="row.userId === meId">（我）</template></RemarkName>
+      <RouterLink :to="`/users/${row.userId}`" class="mt-1 max-w-full truncate text-ink font-semibold">{{ studentName(row) }}<template v-if="row.userId === meId">（我）</template></RouterLink>
       <span v-if="scope === 'GLOBAL' || row.className" class="hidden max-w-full truncate text-xs text-muted md:block">{{ scope === 'GLOBAL' ? row.schoolName || '未加入学校' : row.className }}</span>
       <span class="mb-1 flex items-baseline gap-0.5 md:mb-1.5">
         <span class="num text-lg text-ink font-semibold md:text-[26px]">{{ score(row) }}</span>

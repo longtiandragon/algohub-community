@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import RemarkName from '@/components/school/RemarkName.vue'
 import { computed } from 'vue'
 import type { Ranking } from '@/api/types'
 import { rankContext } from '@/utils/ranking'
@@ -9,6 +8,7 @@ import { rankContext } from '@/utils/ranking'
  * 没上榜时写原因（后端按参与资格一条条查出来的），旁边给页面算好的一个动作（去验证、回到我的年级……）。
  */
 const props = defineProps<{
+  schoolScope?: boolean
   ranking: Ranking
   unit: string
   /** 分数说明，如「近 7 天首次通过」 */
@@ -57,7 +57,7 @@ const progress = computed(() => (aheadScore.value > 0 ? `${Math.min(100, Math.ro
       <div v-if="!compact && context && context.around.length > 1" class="flex flex-col gap-0.5">
         <div v-for="row in context.around" :key="row.userId" class="neighbor" :class="{ 'is-me': row.userId === me.userId }">
           <span class="num w-6 text-[13.5px] text-muted font-semibold">{{ row.rank }}</span>
-          <span class="min-w-0 flex-1 truncate text-sm text-ink"><RemarkName :user-id="row.userId" :name="row.displayName" /><template v-if="row.userId === me.userId">（我）</template></span>
+          <span class="min-w-0 flex-1 truncate text-sm text-ink">{{ schoolScope && row.realName || row.displayName }}<template v-if="row.userId === me.userId">（我）</template></span>
           <span class="num text-[14.5px] text-ink font-semibold">{{ row.score ?? row.solved ?? 0 }}</span>
         </div>
       </div>

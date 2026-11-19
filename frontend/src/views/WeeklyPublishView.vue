@@ -93,7 +93,7 @@ async function recognize() {
   finally { if (token === previewGeneration) identifying.value = false }
 }
 const selected = computed(() => Object.entries(targets.value).sort(([a],[b])=>Number(b)-Number(a)))
-const selectedNames = computed(() => students.value.filter(s=>ids.value.includes(s.userId)).map(s=>s.remark || s.name))
+const selectedNames = computed(() => students.value.filter(s=>ids.value.includes(s.userId)).map(s=>s.realName || s.name))
 const eligiblePrevious = computed(() => previousIds.value.filter(id=>students.value.some(s => s.userId === id && s.year != null && s.year in targets.value)))
 const validRules = computed(() => meta.value && selected.value.length && selected.value.every(([,n])=>Number.isInteger(n)&&n>0&&n<=meta.value!.tasks.length))
 const valid = computed(() => validRules.value && (audience.value === 'ALL' || ids.value.length > 0) && week.value >= minWeek && week.value <= maxWeek)

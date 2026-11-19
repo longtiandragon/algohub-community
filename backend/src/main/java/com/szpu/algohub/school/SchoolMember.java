@@ -7,6 +7,7 @@ public class SchoolMember {
     private Long id;
     private Long schoolId;
     private Long userId;
+    private String realName;
     private String studentNo;
     private Integer enrollmentYear;
     private String className;
@@ -45,6 +46,10 @@ public class SchoolMember {
     public void setUserId(Long userId) {
         this.userId = userId;
     }
+
+    public String getRealName() { return realName; }
+
+    public void setRealName(String realName) { this.realName = realName; }
 
     public String getStudentNo() {
         return studentNo;

@@ -4,7 +4,7 @@ export interface DirectoryStudent {
   userId: number
   name: string
   username: string
-  remark: string | null
+  realName?: string | null
   year: number | null
   className: string | null
   studentNo: string | null

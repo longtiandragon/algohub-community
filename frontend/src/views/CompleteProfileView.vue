@@ -16,11 +16,12 @@ const saving = ref(false)
 async function submit() {
   if (saving.value) return
   if (!draft.displayName.trim() || draft.enrollmentYear == null) { ElMessage.warning('请填写昵称并选择入学年级'); return }
+  if (draft.schoolId && !draft.realName.trim()) { ElMessage.warning('请填写真实姓名'); return }
   if (!draft.className.trim() || !draft.studentNo.trim()) { ElMessage.warning('请填写班级和学号'); return }
   saving.value = true
   try {
     const data = { schoolId: draft.schoolId || null, inviteCode: draft.schoolId ? draft.inviteCode.trim() || null : null,
-      displayName: draft.displayName.trim(), enrollmentYear: draft.enrollmentYear,
+      displayName: draft.displayName.trim(), realName: draft.schoolId ? draft.realName.trim() : null, enrollmentYear: draft.enrollmentYear,
       className: draft.className.trim() || null, studentNo: draft.studentNo.trim() || null }
     if (auth.me?.onboardingCompleted) {
       // Existing users can still apply for a school from settings.
@@ -43,6 +44,7 @@ async function submit() {
   <OnboardingLayout :step="3" icon="i-lucide-user-round" title="完善个人资料" description="填好资料即可完成注册，刷题账号可以稍后绑定。">
     <form class="flex flex-col gap-4" @submit.prevent="submit">
       <div class="flex flex-col gap-1.5"><label for="profile-name">昵称（必填）</label><input id="profile-name" v-model="draft.displayName" required maxlength="32" class="auth-input" placeholder="档案和榜单上展示的名字" autocomplete="nickname" /></div>
+      <div v-if="draft.schoolId" class="flex flex-col gap-1.5"><label for="profile-real-name">真实姓名（必填，校内展示）</label><input id="profile-real-name" v-model="draft.realName" required maxlength="64" class="auth-input" autocomplete="name" placeholder="填写你的真实姓名" /></div>
       <div class="flex flex-col gap-1.5"><label for="profile-year">入学年级（必填）</label><select id="profile-year" v-model="draft.enrollmentYear" required class="auth-input"><option :value="null" disabled>请选择入学年级</option><option v-for="year in years" :key="year" :value="year">{{ year }} 级</option></select><p v-if="yearError" role="alert" class="text-danger-ink">年级加载失败 <button type="button" class="auth-link" @click="reload">重试</button></p></div>
       <div class="flex flex-col gap-1.5"><label for="profile-class">班级（必填）</label><input required id="profile-class" v-model="draft.className" maxlength="64" class="auth-input" placeholder="如24计应2班" /></div>
       <div class="flex flex-col gap-1.5"><label for="profile-student">学号（必填，默认不公开）</label><input required id="profile-student" v-model="draft.studentNo" maxlength="32" class="auth-input" placeholder="填写你的学号" /></div>

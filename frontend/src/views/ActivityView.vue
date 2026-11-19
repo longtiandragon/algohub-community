@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { provideStudentRemarks } from '@/composables/useStudentRemarks'
-import StudentRemarkCard from '@/components/school/StudentRemarkCard.vue'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { get, post, notifyError } from '@/api/client'
 import { getPlatformCapabilities } from '@/api/platformCapabilities'
@@ -273,7 +271,6 @@ const emptyText = computed(() => {
 /** 手机：点概况里的本周目标，在底部弹层里看和改 */
 const goalSheet = ref(false)
 const overview = ref<InstanceType<typeof WeekOverview>>()
-provideStudentRemarks(() => scope.value === 'SCHOOL' ? auth.approvedMembership?.schoolId : undefined)
 </script>
 
 <template>
@@ -331,6 +328,7 @@ provideStudentRemarks(() => scope.value === 'SCHOOL' ? auth.approvedMembership?.
         </p>
 
         <FeedGroups
+          :school-scope="scope === 'SCHOOL'"
           :items="items"
           :marks="marks"
           :me-id="auth.me?.id"
@@ -356,7 +354,6 @@ provideStudentRemarks(() => scope.value === 'SCHOOL' ? auth.approvedMembership?.
     <BottomSheet v-if="!wide" v-model="goalSheet" title="本周目标">
       <WeeklyGoalPanel flat @changed="overview?.reload()" />
     </BottomSheet>
-  <StudentRemarkCard />
   </div>
 </template>
 

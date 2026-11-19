@@ -81,7 +81,7 @@ public class AdminController {
     /** 管理员改成员的年级、班级、学号 */
     @PostMapping("/members/{id}/profile")
     public ApiResult<SchoolMember> updateMember(@PathVariable Long id,
-                                                @Valid @RequestBody SchoolController.ProfileRequest request) {
+                                                @Valid @RequestBody SchoolController.AdminProfileRequest request) {
         return ApiResult.ok(schoolService.adminUpdateProfile(id, request.enrollmentYear(), request.className(),
                 request.studentNo(), CurrentUser.requireId()));
     }

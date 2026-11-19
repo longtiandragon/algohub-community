@@ -1,7 +1,4 @@
 <script setup lang="ts">
-import { provideStudentRemarks } from '@/composables/useStudentRemarks'
-import StudentRemarkCard from '@/components/school/StudentRemarkCard.vue'
-import RemarkName from '@/components/school/RemarkName.vue'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { notifyError } from '@/api/client'
@@ -50,7 +47,6 @@ function publishLink(edit?: number) { return {path:'/weekly/' + school.value?.id
 function publishedDate(value: string | null) {
   return value ? new Date(value).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false}) : ''
 }
-provideStudentRemarks(() => school.value?.id)
 </script>
 <template>
   <div class="page weekly-home mx-auto max-w-[1200px]">
@@ -93,13 +89,12 @@ provideStudentRemarks(() => school.value?.id)
           <header class="section-title"><h2>累计过题榜</h2><div class="range-switch" aria-label="排行榜统计范围"><button :aria-pressed="!allTime" @click="allTime=false">本周</button><button :aria-pressed="allTime" @click="allTime=true">累计</button></div></header>
           <p class="note">{{ allTime ? "所有训练周" : "所选训练周" }} · 仅统计全校开放训练赛，同题去重</p>
           <table v-if="ranking.length"><thead><tr><th>名次</th><th>学生</th><th>年级</th><th>累计过题</th></tr></thead>
-            <tbody><tr v-for="row in ranking" :key="row.userId"><td><span class="rank" :class="{leading:row.rank <= 3}">{{ row.rank }}</span></td><td><RemarkName :user-id="row.userId" :name="row.name" /></td><td>{{ row.year }} 级</td><td>{{ row.solved }}</td></tr></tbody>
+            <tbody><tr v-for="row in ranking" :key="row.userId"><td><span class="rank" :class="{leading:row.rank <= 3}">{{ row.rank }}</span></td><td>{{ row.realName || row.name }}</td><td>{{ row.year }} 级</td><td>{{ row.solved }}</td></tr></tbody>
           </table>
           <p v-else-if="!loading" class="empty">暂无可展示的过题记录</p>
         </section>
       </div>
     </template>
-  <StudentRemarkCard />
   </div>
 </template>
 <style scoped>

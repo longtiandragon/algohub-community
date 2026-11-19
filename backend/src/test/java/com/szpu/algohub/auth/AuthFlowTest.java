@@ -61,7 +61,7 @@ class AuthFlowTest {
 
         username = "auth-test-" + System.nanoTime();
         AppUser user = authService.register(new RegisterRequest(username, "StrongPass123", "认证测试",
-                null, null, null, null, null), "127.0.0.1", "JUnit");
+                null, null, null, null, null, null), "127.0.0.1", "JUnit");
         userId = user.getId();
         // Password-based session scenarios now apply only to administrators.
         jdbcTemplate.update("update app_user set role='ADMIN' where id=?", userId);
@@ -214,7 +214,7 @@ class AuthFlowTest {
     private java.util.List<java.util.Map<String, Object>> totalRankingRows() {
         // 以管理员视角看同校榜单，本人是否在榜只取决于隐私设置
         Long viewer = authService.register(new RegisterRequest("auth-test-viewer-" + System.nanoTime(),
-                "StrongPass123", "同校同学", null, null, null, null, null), "127.0.0.1", "JUnit").getId();
+                "StrongPass123", "同校同学", null, null, null, null, null, null), "127.0.0.1", "JUnit").getId();
         joinDefaultSchool(viewer);
         return (java.util.List<java.util.Map<String, Object>>) campusRankingService
                 .ranking(viewer, "TOTAL", "FIRST_AC", null, null, null, 50).get("rows");
@@ -236,17 +236,17 @@ class AuthFlowTest {
 
         Long school = joinDefaultSchool(userId);
         Long classmate = authService.register(new RegisterRequest("auth-test-mate-" + System.nanoTime(),
-                "StrongPass123", "同校同学", null, null, null, null, null), "127.0.0.1", "JUnit").getId();
+                "StrongPass123", "同校同学", null, null, null, null, null, null), "127.0.0.1", "JUnit").getId();
         joinDefaultSchool(classmate);
         Long otherSchool = jdbcTemplate.queryForObject(
                 "insert into school (name, invite_code) values ('另一所学校', ?) returning id", Long.class,
                 "auth-other-" + System.nanoTime());
         Long outsider = authService.register(new RegisterRequest("auth-test-out-" + System.nanoTime(),
-                "StrongPass123", "外校同学", null, null, null, null, null), "127.0.0.1", "JUnit").getId();
+                "StrongPass123", "外校同学", null, null, null, null, null, null), "127.0.0.1", "JUnit").getId();
         jdbcTemplate.update("insert into school_member (school_id, user_id, status) values (?, ?, 'APPROVED')",
                 otherSchool, outsider);
         Long noSchool = authService.register(new RegisterRequest("auth-test-none-" + System.nanoTime(),
-                "StrongPass123", "未选校", null, null, null, null, null), "127.0.0.1", "JUnit").getId();
+                "StrongPass123", "未选校", null, null, null, null, null, null), "127.0.0.1", "JUnit").getId();
 
         // 不可见：统一 404，不返回昵称
         assertThatThrownBy(() -> authService.publicProfile(userId, classmate, false))

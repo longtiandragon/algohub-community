@@ -16,9 +16,10 @@ import org.apache.ibatis.annotations.Select;
 public interface CampusRankingMapper {
     String ELIGIBLE = """
         with eligible as (
-            select a.*, e.display_name, case when coalesce(privacy.show_accounts,true) then e.avatar_url else null end as user_avatar_url, e.enrollment_year, e.class_name,
+            select a.*, m.real_name, e.display_name, case when coalesce(privacy.show_accounts,true) then e.avatar_url else null end as user_avatar_url, e.enrollment_year, e.class_name,
                    null::varchar as school_name, t.solved_total as snapshot_solved
             from school_board_account e
+            join school_member m on m.school_id=e.school_id and m.user_id=e.user_id
             join platform_account a on a.id = e.account_id
             left join user_privacy privacy on privacy.user_id=a.user_id
             left join lateral (
@@ -41,7 +42,7 @@ public interface CampusRankingMapper {
                    exists (select 1 from daily_stat d where d.account_id = a.id
                            and d.source = 'SUBMISSION' and d.metric = #{metric}))))
             union all
-            select a.*, u.display_name, case when coalesce(p.show_accounts,true) then u.avatar_url else null end as user_avatar_url,
+            select a.*, null::varchar as real_name, u.display_name, case when coalesce(p.show_accounts,true) then u.avatar_url else null end as user_avatar_url,
                    coalesce(m.enrollment_year,u.enrollment_year) as enrollment_year, null::varchar as class_name, m.school_name,
                    t.solved_total as snapshot_solved
             from platform_account a
@@ -105,7 +106,7 @@ public interface CampusRankingMapper {
             where #{type} <> 'TOTAL' and metric = #{metric} and stat_date between #{from} and #{to}
             group by user_id
         ), scores as (
-            select e.user_id as "userId", e.display_name as "displayName", e.user_avatar_url as "avatarUrl",
+            select e.user_id as "userId", e.display_name as "displayName", max(e.real_name) as "realName", e.user_avatar_url as "avatarUrl",
                    e.enrollment_year as "enrollmentYear", e.class_name as "className",
                    e.school_name as "schoolName",
                    bool_or(e.ownership_status != 'VERIFIED') as "hasUnverifiedSource",

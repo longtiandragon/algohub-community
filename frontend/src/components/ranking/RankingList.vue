@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import RemarkName from '@/components/school/RemarkName.vue'
 import type { RankingRow } from '@/api/types'
 import UserAvatar from '@/components/ui/UserAvatar.vue'
 
@@ -33,6 +32,9 @@ const TONES = ['tone-a', 'tone-b', 'tone-c', 'tone-d', 'tone-e']
 const tone = (row: RankingRow) => (row.userId === props.meId ? 'tone-me' : TONES[row.userId % TONES.length])
 const trust = (row: RankingRow) => (row.hasUnverifiedSource ? '含还没验证归属的账号' : '账号归属已验证')
 const affiliation = (row: RankingRow) => props.scope === 'GLOBAL' ? row.schoolName || '未加入学校' : row.className || '班级未填'
+function studentName(row: RankingRow) {
+  return (props.scope === 'SCHOOL' && row.realName) || row.displayName
+}
 </script>
 
 <template>
@@ -51,10 +53,10 @@ const affiliation = (row: RankingRow) => props.scope === 'GLOBAL' ? row.schoolNa
       >
         <span class="num rank">{{ row.rank }}<span class="sr-only"> 名</span></span>
         <div class="min-w-0 flex items-center gap-2.5 no-underline hover:underline md:gap-2.5">
-          <RouterLink :to="`/users/${row.userId}`" :aria-label="`查看 ${row.displayName} 的档案`"><UserAvatar :src="row.avatarUrl" class="avatar" :class="tone(row)">{{ row.displayName.slice(0, 1) }}</UserAvatar></RouterLink>
+          <RouterLink :to="`/users/${row.userId}`" :aria-label="`查看 ${studentName(row)} 的档案`"><UserAvatar :src="row.avatarUrl" class="avatar" :class="tone(row)">{{ studentName(row).slice(0, 1) }}</UserAvatar></RouterLink>
           <span class="min-w-0 flex flex-col gap-px">
             <span class="flex items-center gap-1.5 text-[14.5px] text-ink">
-              <RemarkName :user-id="row.userId" :name="row.displayName" profile class="truncate" />
+              <RouterLink :to="`/users/${row.userId}`" class="truncate">{{ studentName(row) }}</RouterLink>
               <span v-if="row.userId === meId" class="me-tag">我</span>
               <span
                 v-if="row.hasUnverifiedSource"

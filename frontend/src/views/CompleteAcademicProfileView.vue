@@ -10,7 +10,7 @@ import { useEnrollmentYears } from '@/composables/useEnrollmentYears'
 
 const auth = useAuthStore()
 const router = useRouter()
-const original = { enrollmentYear: auth.me?.enrollmentYear ?? null, className: auth.me?.className ?? '', studentNo: auth.me?.studentNo ?? '' }
+const original = { realName: auth.me?.realName ?? '', enrollmentYear: auth.me?.enrollmentYear ?? null, className: auth.me?.className ?? '', studentNo: auth.me?.studentNo ?? '' }
 const form = reactive({ ...original })
 const saving = ref(false)
 const { years, error, reload } = useEnrollmentYears()
@@ -18,10 +18,10 @@ const yearOptions = computed(() => [...new Set([...years.value, ...(original.enr
 const membership = computed(() => auth.approvedMembership ?? auth.me?.memberships.find(m => m.status === 'PENDING'))
 async function submit() {
   if (saving.value) return
-  if (!form.enrollmentYear || !form.className.trim() || !form.studentNo.trim()) { ElMessage.warning('请补齐年级、班级和学号'); return }
+  if ((membership.value && !form.realName.trim()) || !form.enrollmentYear || !form.className.trim() || !form.studentNo.trim()) { ElMessage.warning('请补齐标注的学籍信息'); return }
   saving.value = true
   try {
-    auth.me = await post<Me>('/me/complete-academic-profile', { ...form, className: form.className.trim(), studentNo: form.studentNo.trim() })
+    auth.me = await post<Me>('/me/complete-academic-profile', { ...form, realName: form.realName.trim() || null, className: form.className.trim(), studentNo: form.studentNo.trim() })
     ElMessage.success('资料已补齐')
     await router.replace(auth.approvedMembership ? '/' : '/ranking')
   } catch (e) { notifyError(e) }
@@ -30,10 +30,14 @@ async function submit() {
 </script>
 
 <template>
-  <OnboardingLayout icon="i-lucide-user-round" title="补全资料" description="班级和学号现为必填项，请补齐缺失的信息。已有学校、账号和刷题记录都会保留。">
+  <OnboardingLayout icon="i-lucide-user-round" title="补全资料" description="请补齐学籍中缺少的信息。">
     <p class="mt-0 text-sm text-muted">{{ auth.me?.displayName }}<template v-if="membership"> · {{ membership.schoolName }}</template></p>
     <p v-if="auth.me?.nicknameNeedsReview" class="text-sm text-muted">当前是系统生成的昵称，补全资料后可到设置中修改。</p>
     <form id="complete-academic-form" class="flex flex-col gap-4" @submit.prevent="submit">
+      <div v-if="membership" class="flex flex-col gap-1.5">
+        <label for="repair-real-name">真实姓名（校内展示）</label>
+        <input id="repair-real-name" v-model="form.realName" required maxlength="64" :readonly="!!original.realName.trim()" class="auth-input" autocomplete="name" placeholder="填写你的真实姓名" />
+      </div>
       <div class="flex flex-col gap-1.5">
         <label for="repair-year">入学年级</label>
         <select id="repair-year" v-model="form.enrollmentYear" required :disabled="original.enrollmentYear !== null" class="auth-input">

@@ -76,14 +76,14 @@ public class CohortLeaderMapper {
         String where="""
             from school_member m join app_user u on u.id=m.user_id
             where m.school_id=? and m.enrollment_year=? and (?='' or m.status=?)
-              and position(lower(?) in lower(u.display_name||' '||u.username||' '||coalesce(m.student_no,'')||' '||coalesce(m.class_name,'')))>0
+              and position(lower(?) in lower(u.display_name||' '||u.username||' '||coalesce(m.real_name,'')||' '||coalesce(m.student_no,'')||' '||coalesce(m.class_name,'')))>0
             """;
         Object[] args={school,year,status,status,query};
         long total=db.queryForObject("select count(*) " + where,Long.class,args);
         var parameters=new ArrayList<Object>(); parameters.add(actor); parameters.addAll(Arrays.asList(args)); parameters.add((page-1)*50);
         var rows=db.queryForList("""
             select m.id,m.user_id as "userId",u.display_name as "displayName",u.username,m.status,
-                m.enrollment_year as "enrollmentYear",m.class_name as "className",m.student_no as "studentNo",
+                m.enrollment_year as "enrollmentYear",m.class_name as "className",m.student_no as "studentNo",m.real_name as "realName",
                 (u.role='STUDENT' and u.status='ACTIVE' and not exists(select 1 from school_administrator sa where sa.user_id=u.id)) as "canEdit",
                 (m.user_id<>? and u.role='STUDENT' and u.status='ACTIVE'
                     and not exists(select 1 from school_administrator sa where sa.user_id=u.id)

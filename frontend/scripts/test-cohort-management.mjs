@@ -21,7 +21,6 @@ function harness(view, api, initialProps = {}, confirm = async () => {}) {
     if (name === 'vue') return { ...vue, onMounted: fn => mounted.push(fn), onBeforeUnmount: fn => cleanup.push(fn) }
     if (name === 'element-plus') return { ElMessage: { success: text => feedback.push(text) }, ElMessageBox: { confirm } }
     if (name === '@/api/client') return { ApiError, notifyError: error => feedback.push(error.message) }
-    if (name === '@/composables/useStudentRemarks') return { provideStudentRemarks: () => ({ names: vue.ref({}), manageable: vue.ref(false) }) }
     if (name === '@/api/cohortLeaders') return api
     if (name === '@/stores/auth') return { useAuthStore: () => ({ refreshMe: async () => feedback.push('identity-refreshed') }) }
     return {}

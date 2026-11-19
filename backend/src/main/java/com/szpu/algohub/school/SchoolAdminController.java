@@ -44,11 +44,11 @@ public class SchoolAdminController {
         @RequestParam(defaultValue="1") int page) {
         require(schoolId,AdminPermission.SCHOOLS);
         if (!List.of("","PENDING","APPROVED","REJECTED").contains(status) || q.length()>100 || page<1 || page>100000) throw ApiException.validation("筛选参数无效");
-        String where=" from school_member m join app_user u on u.id=m.user_id where m.school_id=? and (?='' or m.status=?) and (?='' or position(lower(?) in lower(u.display_name||' '||u.username||' '||coalesce(m.student_no,'')||' '||coalesce(m.class_name,'')))>0)";
+        String where=" from school_member m join app_user u on u.id=m.user_id where m.school_id=? and (?='' or m.status=?) and (?='' or position(lower(?) in lower(u.display_name||' '||u.username||' '||coalesce(m.real_name,'')||' '||coalesce(m.student_no,'')||' '||coalesce(m.class_name,'')))>0)";
         Object[] args={schoolId,status,status,q,q};
         long total=db.queryForObject("select count(*)"+where,Long.class,args);
         var parameters=new ArrayList<Object>(List.of(args)); parameters.add((page-1)*50);
-        var rows=db.queryForList("select m.id,m.user_id as \"userId\",u.display_name as \"displayName\",u.username,m.status,m.enrollment_year as \"enrollmentYear\",m.class_name as \"className\",m.student_no as \"studentNo\",u.role='ADMIN' as \"platformAdmin\""+where+" order by m.id desc limit 50 offset ?",parameters.toArray());
+        var rows=db.queryForList("select m.id,m.user_id as \"userId\",u.display_name as \"displayName\",u.username,m.real_name as \"realName\",m.status,m.enrollment_year as \"enrollmentYear\",m.class_name as \"className\",m.student_no as \"studentNo\",u.role='ADMIN' as \"platformAdmin\""+where+" order by m.id desc limit 50 offset ?",parameters.toArray());
         return ApiResult.ok(Map.of("rows",rows,"total",total));
     }
     private void member(long schoolId,long memberId) {
@@ -64,7 +64,7 @@ public class SchoolAdminController {
         return ApiResult.ok(schools.review(id,input.approve(),CurrentUser.requireId(),input.reason()));
     }
     @PostMapping("/{schoolId}/members/{id}/profile")
-    public ApiResult<SchoolMember> profile(@PathVariable long schoolId,@PathVariable long id,@Valid @RequestBody SchoolController.ProfileRequest input) {
+    public ApiResult<SchoolMember> profile(@PathVariable long schoolId,@PathVariable long id,@Valid @RequestBody SchoolController.AdminProfileRequest input) {
         member(schoolId,id);
         if(input.enrollmentYear()==null) throw ApiException.validation("请选择年级");
         return ApiResult.ok(schools.adminUpdateProfile(id,input.enrollmentYear(),input.className(),input.studentNo(),CurrentUser.requireId()));

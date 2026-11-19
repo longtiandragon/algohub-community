@@ -79,7 +79,7 @@ const privacy = reactive<PrivacySettings>({ profileVisibility: 'SCHOOL', publicA
 const passwordForm = reactive({ oldPassword: '', newPassword: '', confirmPassword: '' })
 /** 学校与年级：改的是这条入校记录（有已通过的用它，否则第一条）；学号从成员接口读，保存时原样带回 */
 const schoolMember = ref<Membership | null>(null)
-const schoolForm = reactive<{ enrollmentYear: number | null; className: string; studentNo: string }>({ enrollmentYear: null, className: '', studentNo: '' })
+const schoolForm = reactive<{ realName: string; enrollmentYear: number | null; className: string; studentNo: string }>({ realName: '', enrollmentYear: null, className: '', studentNo: '' })
 /** 表单的原样（从服务器读到的），用来判断改没改、放弃时还原 */
 const profileBase = ref('')
 const privacyBase = ref('')
@@ -88,8 +88,9 @@ const schoolBase = ref('')
 async function loadMembership() {
   try {
     const list = await get<Membership[]>('/schools/memberships')
-    const member = list.find((m) => m.status === 'APPROVED') ?? list[0] ?? null
+    const member = list.find((m) => m.status === 'APPROVED') ?? list.find((m) => m.status === 'PENDING') ?? list[0] ?? null
     schoolMember.value = member
+    schoolForm.realName = auth.me?.realName ?? ''
     schoolForm.enrollmentYear = member?.enrollmentYear ?? auth.me?.enrollmentYear ?? null
     schoolForm.className = member?.className ?? auth.me?.className ?? ''
     schoolForm.studentNo = member?.studentNo ?? auth.me?.studentNo ?? ''
@@ -139,19 +140,19 @@ const saving = ref(false)
 
 async function save() {
   if (!dirty.value || saving.value) return
-  if (schoolDirty.value && (!schoolForm.className.trim() || !schoolForm.studentNo.trim() || !schoolForm.enrollmentYear)) { ElMessage.warning('请填写年级、班级和学号'); return }
+  if (schoolDirty.value && ((schoolMember.value && schoolMember.value.status !== 'REJECTED' && !schoolForm.realName.trim()) || !schoolForm.className.trim() || !schoolForm.studentNo.trim() || !schoolForm.enrollmentYear)) { ElMessage.warning('请补齐学籍资料中的必填项'); return }
   saving.value = true
   try {
     if (profileDirty.value) await post('/me/profile', { ...profileForm })
     if (privacyDirty.value) await post('/me/privacy', { ...privacy })
     if (schoolDirty.value && schoolMember.value) {
       await post(`/schools/memberships/${schoolMember.value.id}`, {
-        enrollmentYear: schoolForm.enrollmentYear,
+        realName: schoolForm.realName.trim() || null, enrollmentYear: schoolForm.enrollmentYear,
         className: schoolForm.className.trim() || null,
         studentNo: schoolForm.studentNo.trim() || null
       })
     }
-    if (schoolDirty.value && !schoolMember.value) await post('/me/academic-profile', schoolForm)
+    if (schoolDirty.value && !schoolMember.value) await post('/me/academic-profile', { ...schoolForm, realName: schoolForm.realName.trim() || null })
     await auth.refreshMe()
     syncFromStore()
     await loadMembership()
@@ -385,7 +386,7 @@ const formatTime = (value: string | null | undefined) => (value ? new Date(value
           </SectionCard>
         </template>
 
-        <SchoolSection v-else-if="section === 'school'" :membership="schoolMember" :form="schoolForm" />
+        <SchoolSection v-else-if="section === 'school'" :membership="schoolMember" :form="schoolForm" @joined="loadMembership" />
 
         <!-- 登录邮箱；管理员还有密码 -->
         <template v-else-if="section === 'login-email'">

@@ -53,7 +53,7 @@ public interface ActivityMapper {
             select s.id,
                    s.user_id as "userId",
                    s.problem_id as "problemId",
-                   u.display_name as "displayName",
+                   u.display_name as "displayName", sm.real_name as "realName",
                    case when coalesce(privacy.show_accounts,true) then u.avatar_url else null end as "avatarUrl",
                    s.platform,
                    p.problem_key as "problemKey",
@@ -69,6 +69,7 @@ public interface ActivityMapper {
               from """ + VISIBLE_SOLVES + """
                s
               join app_user u on u.id = s.user_id
+              left join school_member sm on sm.user_id=u.id and sm.school_id=#{schoolId,jdbcType=BIGINT} and sm.status='APPROVED'
               left join user_privacy privacy on privacy.user_id=u.id
               join problem p on p.id = s.problem_id
              where s.earliest_known_ac_at is not null

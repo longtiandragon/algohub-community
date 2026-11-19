@@ -67,7 +67,7 @@ public class WeeklyReport {
             int solved=entry.tasks.size();
             if(previous!=solved) rank=ranking.size()+1;
             previous=solved;
-            ranking.add(Map.of("userId",entry.student.id,"name",entry.student.name,"year",entry.student.year,"rank",rank,"solved",solved));
+            ranking.add(Map.of("userId",entry.student.id,"name",entry.student.name,"realName",entry.student.realName,"year",entry.student.year,"rank",rank,"solved",solved));
         }
         return Map.of("weekStart",monday,"ranking",ranking,"contests",trainings.stream().filter(t -> monday.toString().equals(t.weekStart)).map(t->t.output(false,manager)).toList());
     }
@@ -93,7 +93,7 @@ public class WeeklyReport {
         if (trainings.isEmpty()) return List.of();
         params.put("ids", trainings.keySet());
         db.query("""
-            select t.id,u.id as student,u.display_name,m.enrollment_year,
+            select t.id,u.id as student,u.display_name,coalesce(m.real_name,'') as real_name,m.enrollment_year,
                    a.id as account,b.account_id is not null as visible,
                    a.last_success_at,a.history_complete,a.sync_status,
                    r.result::text,r.failed,
@@ -158,7 +158,7 @@ public class WeeklyReport {
             long user = rs.getLong("student");
             Student s = students.get(user);
             if (s == null) {
-                s = new Student(user, rs.getString("display_name"), rs.getInt("enrollment_year"));
+                s = new Student(user, rs.getString("display_name"), rs.getString("real_name"), rs.getInt("enrollment_year"));
                 students.put(user, s);
             }
             if (rs.getObject("account") == null) return;
@@ -250,7 +250,7 @@ public class WeeklyReport {
 
     private record Standing(Student student, Row row) {
         Map<String,Object> output(Integer rank) {
-            Map<String,Object> out = new LinkedHashMap<>(Map.of("userId",student.id,"name",student.name,
+            Map<String,Object> out = new LinkedHashMap<>(Map.of("userId",student.id,"name",student.name,"realName",student.realName,
                     "kind",row.kind(),"penalty",row.penalty(),"cells",row.cells()));
             out.put("score",row.score());
             out.put("rank",rank);
@@ -261,15 +261,16 @@ public class WeeklyReport {
 
     private static class Student {
         final long id;
-        final String name;
+        final String name, realName;
         final int year;
         final Set<String> solved = new HashSet<>(), boardSolved = new HashSet<>(), boardTried = new HashSet<>();
         boolean bound, waiting, failed;
         Row best, practice;
 
-        Student(long id, String name, int year) {
+        Student(long id, String name, String realName, int year) {
             this.id = id;
             this.name = name;
+            this.realName = realName;
             this.year = year;
         }
 
@@ -279,7 +280,7 @@ public class WeeklyReport {
             else if (!bound) status = "UNBOUND";
             else if (failed) status = "ERROR";
             else if (waiting) status = "SYNCING";
-            return Map.of("userId",id,"name",name,"year",year,"solved",solved.size(),"goal",goal,"status",status);
+            return Map.of("userId",id,"name",name,"realName",realName,"year",year,"solved",solved.size(),"goal",goal,"status",status);
         }
 
         void addBoardRow(Row row) {

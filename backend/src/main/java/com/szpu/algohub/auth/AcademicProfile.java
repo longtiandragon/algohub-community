@@ -5,7 +5,7 @@ import java.util.List;
 import com.szpu.algohub.school.SchoolMember;
 
 /** Existing school data takes precedence; missing fields fall back to personal data. */
-public record AcademicProfile(Integer enrollmentYear, String className, String studentNo) {
+public record AcademicProfile(Integer enrollmentYear, String className, String studentNo, String realName, boolean schoolSelected) {
     public static SchoolMember membership(List<SchoolMember> memberships) {
         return memberships.stream().filter(m -> List.of("APPROVED", "PENDING").contains(m.getStatus()))
                 .min(Comparator.comparingInt((SchoolMember m) -> "APPROVED".equals(m.getStatus()) ? 0 : 1)
@@ -15,9 +15,9 @@ public record AcademicProfile(Integer enrollmentYear, String className, String s
         SchoolMember member = membership(memberships);
         return new AcademicProfile(member != null && member.getEnrollmentYear() != null ? member.getEnrollmentYear() : user.getEnrollmentYear(),
                 fallback(member == null ? null : member.getClassName(), user.getClassName()),
-                fallback(member == null ? null : member.getStudentNo(), user.getStudentNo()));
+                fallback(member == null ? null : member.getStudentNo(), user.getStudentNo()), member == null ? null : member.getRealName(), member != null);
     }
     private static String fallback(String value, String other) { return present(value) ? value : other; }
     public static boolean present(String value) { return value != null && !value.isBlank(); }
-    public boolean complete() { return enrollmentYear != null && present(className) && present(studentNo); }
+    public boolean complete() { return enrollmentYear != null && present(className) && present(studentNo) && (!schoolSelected || present(realName)); }
 }

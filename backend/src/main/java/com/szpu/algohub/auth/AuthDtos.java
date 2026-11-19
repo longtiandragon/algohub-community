@@ -24,7 +24,7 @@ public final class AuthDtos {
             String inviteCode,
             Integer enrollmentYear,
             String className,
-            String studentNo) {
+            String studentNo, @Size(max=64) String realName) {
     }
 
     public record LoginRequest(@NotBlank @Size(max = 32) String username, @NotBlank @Size(max = 64) String password) {
@@ -65,16 +65,16 @@ public final class AuthDtos {
     public record OnboardingRequest(Long schoolId, @Size(max=64) String inviteCode,
             @NotBlank @Size(max=32) String displayName,
             @jakarta.validation.constraints.NotNull Integer enrollmentYear,
-            @NotBlank(message="请填写班级") @Size(max=64) String className, @NotBlank(message="请填写学号") @Size(max=32) String studentNo) {}
+            @NotBlank(message="请填写班级") @Size(max=64) String className, @NotBlank(message="请填写学号") @Size(max=32) String studentNo, @Size(max=64) String realName) {}
 
     public record AcademicRequest(@jakarta.validation.constraints.NotNull Integer enrollmentYear,
-            @NotBlank(message="请填写班级") @Size(max=64) String className, @NotBlank(message="请填写学号") @Size(max=32) String studentNo) {}
+            @NotBlank(message="请填写班级") @Size(max=64) String className, @NotBlank(message="请填写学号") @Size(max=32) String studentNo, @Size(max=64) String realName) {}
 
     public record MeView(Long id, String username, String displayName, String email, String role,
                          String avatarUrl, String bio, boolean hasPassword, Instant lastLoginAt,
                          Instant createdAt, List<MembershipView> memberships, PrivacyView privacy,
                          List<OauthBindingView> bindings, boolean emailVerified, boolean onboardingCompleted,
-                         Integer enrollmentYear, String className, String studentNo,
+                         Integer enrollmentYear, String className, String studentNo, String realName,
                          boolean profileCompletionRequired, boolean nicknameNeedsReview, List<java.util.Map<String,Object>> managedSchools,
                          List<java.util.Map<String,Object>> managedCohorts) {
     }

@@ -16,7 +16,7 @@ try {
   const page = await browser.newPage()
   await page.goto(`${base}/api/auth/email/status`)
   await page.evaluate(async () => fetch('/api/auth/demo-login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username:'chenyiming'}) }))
-  await page.goto(`${base}/ranking`)
+  await page.goto(`${base}/weekly/2/4`)
   await page.waitForSelector('#repair-class')
   assert.equal(new URL(page.url()).pathname, '/complete-academic-profile')
   assert.deepEqual(await page.evaluate(() => [document.querySelector('#repair-year').value, document.querySelector('#repair-year').disabled, document.querySelector('#repair-student').value, document.querySelector('#repair-student').readOnly]), ['2024', true, '240001', true])
@@ -26,6 +26,8 @@ try {
     await page.screenshot({path:path.join(root,`.screenshots/legacy-profile-${width}.png`),fullPage:true})
   }
   await page.type('#repair-class','计应1班')
+  const realName = await page.$('#repair-real-name')
+  if (!await realName.evaluate(input => input.readOnly)) await realName.type('测试学生')
   const saved = page.waitForResponse(r => r.url().endsWith('/api/me/complete-academic-profile') && r.request().method()==='POST')
   await page.click('button[form="complete-academic-form"]')
   assert.equal((await (await saved).json()).data.profileCompletionRequired,false)

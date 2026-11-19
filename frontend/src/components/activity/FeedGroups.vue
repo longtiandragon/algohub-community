@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import RemarkName from '@/components/school/RemarkName.vue'
 import { computed } from 'vue'
 import BookmarkButton from '@/components/BookmarkButton.vue'
 import DifficultyTag from '@/components/DifficultyTag.vue'
@@ -21,6 +20,7 @@ import type { BookmarkMark, FeedItem } from './types'
  * 保持接口返回的顺序，只按日子切分，不再排序。
  */
 const props = defineProps<{
+  schoolScope?: boolean
   items: FeedItem[]
   marks: Record<number, BookmarkMark>
   meId: number | undefined
@@ -79,6 +79,9 @@ function timeText(value: string) {
 
 const mine = (item: FeedItem) => props.meId !== undefined && item.userId === props.meId
 const safeUrl = (url: string | null) => (url && /^https?:\/\//i.test(url) ? url : undefined)
+function studentName(item: FeedItem) {
+  return (props.schoolScope && item.realName) || item.displayName || '匿名同学'
+}
 </script>
 
 <template>
@@ -103,10 +106,10 @@ const safeUrl = (url: string | null) => (url && /^https?:\/\//i.test(url) ? url 
         </div>
         <ul class="m-0 list-none overflow-hidden border border-line rounded-card border-solid bg-surface p-0">
           <li v-for="item in group.items" :key="item.id" class="feed-item" :class="{ 'is-mine': mine(item), 'is-following': item.following }" data-test="feed-item">
-            <RouterLink :to="`/users/${item.userId}`" :aria-label="`查看 ${item.displayName} 的档案`"><UserAvatar :src="item.avatarUrl" :name="item.displayName" class="avatar" :class="mine(item) ? 'bg-brand-btn text-white' : avatarTone(item.userId)" /></RouterLink>
+            <RouterLink :to="`/users/${item.userId}`" :aria-label="`查看 ${studentName(item)} 的档案`"><UserAvatar :src="item.avatarUrl" :name="studentName(item)" class="avatar" :class="mine(item) ? 'bg-brand-btn text-white' : avatarTone(item.userId)" /></RouterLink>
             <div class="min-w-0 flex flex-1 flex-col gap-1.5">
               <p class="m-0 text-sm text-body leading-normal">
-                <RemarkName :user-id="item.userId" :name="item.displayName || '匿名同学'" compact profile class="text-ink font-semibold"/><span v-if="mine(item)" class="text-muted">（我）</span>
+                <RouterLink :to="`/users/${item.userId}`" class="text-ink font-semibold">{{ studentName(item) }}</RouterLink><span v-if="mine(item)" class="text-muted">（我）</span>
                 <span v-if="item.following" class="follow-label">已关注</span>
                 通过了
                 <a v-if="safeUrl(item.url)" :href="safeUrl(item.url)" target="_blank" rel="noopener noreferrer" class="problem">

@@ -133,6 +133,20 @@ class ActivityServiceTest {
     }
 
     @Test
+    void schoolNameStaysOutOfPublicFeed() {
+        jdbcTemplate.update("update school_member set real_name=? where user_id=?", "测试真名", userB);
+        jdbcTemplate.update("update user_privacy set public_activity=true where user_id=?", userB);
+        solve(userB, accountB, Platform.ATCODER, "abc300_b", "Test", Instant.now(), "EXACT", List.of());
+        for (String scope : List.of("SCHOOL", "PUBLIC")) {
+            var rows = activityService.feed(userA,null,userB,scope,null,null,20).items();
+            assertThat(rows).singleElement().satisfies(row -> {
+                assertThat(row.get("displayName")).isEqualTo("同学乙");
+                assertThat(row.get("realName")).isEqualTo(scope.equals("SCHOOL") ? "测试真名" : null);
+            });
+        }
+    }
+
+    @Test
     void recordsWithoutKnownTimeNeverAppear() {
         solve(userA, accountA, Platform.CODEFORCES, "1A", "Theatre Square", null, "UNKNOWN", List.of());
         solve(userA, accountA, Platform.CODEFORCES, "2A", "Winner", Instant.now(), "EXACT", List.of());

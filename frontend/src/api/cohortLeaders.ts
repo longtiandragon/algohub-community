@@ -6,6 +6,7 @@ export interface CohortScope {
   enrollmentYear: number
 }
 export interface LeaderCandidate {
+  realName?: string | null
   userId: number
   username: string
   displayName: string
@@ -16,6 +17,7 @@ export interface CohortGrant extends LeaderCandidate {
   createdAt: string
 }
 export interface CohortMember {
+  realName?: string | null
   id: number
   userId: number
   displayName: string

@@ -18,15 +18,14 @@ try {
   let management = true, submitted = null, scheduled = null, savedDefaults = null
   const meta = { platform: 'CODEFORCES', ref: '2278', title: 'Codeforces Round 1131 (Div. 3)', category: 'Div.3',
     url: 'https://codeforces.com/contest/2278', tasks: [...'ABCDEFG'].map(index => ({ index, key: '2278' + index })) }
-  let remark = '队长阿甲'
   const targets = { 2026: 4, 2025: 5 }
   const user = { id: 3, username: 'fixture', displayName: '测试账号', role: 'STUDENT', emailVerified: true, onboardingCompleted: true,
     memberships: [{ schoolId: 1, schoolName: '测试学校', status: 'APPROVED', enrollmentYear: 2026 }], managedCohorts: [{ schoolId: 1, enrollmentYear: 2026 }] }
-  const students = [{ userId: 4, year: 2026, name: '测试甲', solved: 5, goal: 4, status: 'MET' },
+  const students = [{ userId: 4, year: 2026, name: '测试甲', realName: '王明远', solved: 5, goal: 4, status: 'MET' },
     { userId: 5, year: 2025, name: '测试乙', solved: 0, goal: 5, status: 'UNBOUND' }]
   const cell = { solved: true, wrong: 2, score: 1, seconds: 83 }
-  const rows = [{ userId: 4, name: '测试甲', kind: 'VIRTUAL', rank: 1, cells: { A: cell }, score: 1, penalty: 83 },
-    { userId: 4, name: '测试甲', kind: 'PRACTICE', rank: null, cells: { E: cell }, score: null, penalty: null }]
+  const rows = [{ userId: 4, name: '测试甲', realName: '王明远', kind: 'VIRTUAL', rank: 1, cells: { A: cell }, score: 1, penalty: 83 },
+    { userId: 4, name: '测试甲', realName: '王明远', kind: 'PRACTICE', rank: null, cells: { E: cell }, score: null, penalty: null }]
   const contest = () => ({ id: 6, meta, targets, weekStart: submitted.weekStart, students, status: submitted.status, audience: submitted.audience })
   await page.setRequestInterception(true)
   page.on('request', req => {
@@ -41,14 +40,9 @@ try {
       const roster = Array.from({length: 65}, (_, i) => ({
         userId: i + 4, name: '学生' + i, year: 2026, className: '计算机一班', studentNo: '202600' + i,
       }))
-      if (url.searchParams.get('ids') === '4') Object.assign(roster[0], { name: '测试甲', remark })
+      if (url.searchParams.get('ids') === '4') Object.assign(roster[0], { name: '测试甲', realName: '王明远' })
       const page = Number(url.searchParams.get('page') || 1), size = Number(url.searchParams.get('size') || 30)
       data = {items: roster.slice((page-1)*size, page*size), total: roster.length, groups: [{year: 2026, className: '计算机一班', count: 65}]}
-    }
-    else if (path === '/api/schools/1/students/remarks') data = { 4: remark }
-    else if (path === '/api/schools/1/students/4/remark' && req.method() === 'PUT') {
-      remark = JSON.parse(req.postData()).remark
-      data = true
     }
     else if (path === '/api/weekly/1/defaults') { savedDefaults = JSON.parse(req.postData()); data = true }
     else if (path === '/api/weekly/1/overview') {
@@ -56,7 +50,7 @@ try {
       data = { contests: [], ranking: [] }
       if (submitted?.weekStart === currentWeek) {
         data.contests.push(contest())
-        data.ranking.push({userId:4, year:2026, name:'测试甲', solved:5, rank:1})
+        data.ranking.push({userId:4, year:2026, name:'测试甲', realName:'王明远', solved:5, rank:1})
       }
       if (management && scheduled?.weekStart === currentWeek) data.contests.push({ ...contest(), ...scheduled, id:7, students:[] })
     }
@@ -81,6 +75,10 @@ try {
   await page.setViewport({ width: 1280, height: 860 })
   await page.goto(base + '/weekly')
   await waitText('该周暂无已发布的训练赛')
+  const nav = await page.$$eval('nav[aria-label="主导航"] a', links => links.map(link => link.pathname))
+  const accounts = nav.indexOf('/accounts')
+  assert.ok(accounts >= 0)
+  assert.deepEqual(nav.slice(accounts + 1, accounts + 3), ['/activity', '/weekly'])
   await page.click('a.publish-link')
   await page.waitForSelector('#weekly-contest-url')
   await page.type('#weekly-contest-url', meta.url)
@@ -155,13 +153,8 @@ try {
   await page.focus('a[href^="/weekly/1/6"]')
   await page.keyboard.press('Enter')
   await waitText('参赛成绩')
-  await waitText(remark)
-  await page.click('button[aria-label="查看 队长阿甲 的学生卡片"]')
-  await page.waitForFunction(() => document.querySelector('#private-student-remark')?.value === '队长阿甲')
-  await page.type('#private-student-remark', '同学')
-  await button('保存备注')
-  await waitText('队长阿甲同学')
-  assert.equal(await page.$$eval('.standings .remark-trigger', entries => entries.filter(e => e.textContent === '队长阿甲同学').length), 2)
+  await waitText('王明远')
+  assert.equal(await page.$$eval('.standings tbody th.name', rows => rows.filter(row => row.textContent.includes('王明远')).length), 2)
   assert.equal(await page.$$eval('.standings tbody', groups => groups.length), 2)
   assert.equal(await page.$eval('.score-section:nth-of-type(2) tbody td:first-child', td => td.textContent.trim()), '')
   assert.equal(await page.$eval('.score-section:nth-of-type(2) tbody', el => el.textContent.includes('00:01:23')), false)

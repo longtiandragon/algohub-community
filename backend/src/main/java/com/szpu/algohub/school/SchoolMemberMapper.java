@@ -76,6 +76,9 @@ public interface SchoolMemberMapper {
             """)
     int updateProfile(SchoolMember member);
 
+    @Update("update school_member set real_name = #{realName} where id = #{id}")
+    int updateRealName(SchoolMember member);
+
     @Select("""
             select count(*) from school_member
              where user_id = #{userId} and status = 'APPROVED'

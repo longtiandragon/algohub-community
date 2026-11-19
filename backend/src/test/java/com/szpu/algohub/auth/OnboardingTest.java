@@ -47,7 +47,7 @@ class OnboardingTest {
         return user;
     }
     AuthDtos.OnboardingRequest request(Long school, String code) {
-        return new AuthDtos.OnboardingRequest(school,code," 同名昵称 ",2024,"如24计应2班","1234");
+        return new AuthDtos.OnboardingRequest(school,code," 同名昵称 ",2024,"如24计应2班","1234","王同学");
     }
     @Test void schoolIsOptionalAndContactAddressIsPreserved() {
         var u=fresh(true); assertThat(users.findById(u.getId()).isOnboardingCompleted()).isFalse();
@@ -64,7 +64,7 @@ class OnboardingTest {
     @Test void academicFieldsAreRequired() {
         for(int i=0;i<2;i++) {
             var u=fresh(true);
-            assertThatThrownBy(() -> onboarding.complete(u.getId(),new AuthDtos.OnboardingRequest(null,null,"同名昵称",2024," ",null))).isInstanceOf(ApiException.class);
+            assertThatThrownBy(() -> onboarding.complete(u.getId(),new AuthDtos.OnboardingRequest(null,null,"同名昵称",2024," ",null,null))).isInstanceOf(ApiException.class);
             assertThat(auth.me(u.getId()).className()).isNull();
             assertThat(auth.me(u.getId()).studentNo()).isNull();
         }
@@ -83,8 +83,8 @@ class OnboardingTest {
         assertThatThrownBy(()->onboarding.complete(u.getId(),request(schools.defaultSchool().getId(),"wrong"))).isInstanceOf(ApiException.class);
         assertThat(schools.myMemberships(u.getId())).isEmpty();
         assertThat(users.findById(u.getId()).isOnboardingCompleted()).isFalse();
-        assertThatThrownBy(()->onboarding.complete(u.getId(),new AuthDtos.OnboardingRequest(null,null," ",2024,null,null))).isInstanceOf(ApiException.class);
-        assertThatThrownBy(()->onboarding.complete(u.getId(),new AuthDtos.OnboardingRequest(null,null,"名字",null,null,null))).isInstanceOf(ApiException.class);
+        assertThatThrownBy(()->onboarding.complete(u.getId(),new AuthDtos.OnboardingRequest(null,null," ",2024,null,null,null))).isInstanceOf(ApiException.class);
+        assertThatThrownBy(()->onboarding.complete(u.getId(),new AuthDtos.OnboardingRequest(null,null,"名字",null,null,null,null))).isInstanceOf(ApiException.class);
     }
     @Test void requiresVerifiedEmailAndSkipsAdministrators() {
         var u=fresh(false);

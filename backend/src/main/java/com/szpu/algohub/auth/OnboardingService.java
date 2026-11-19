@@ -32,7 +32,7 @@ public class OnboardingService {
         years.validate(request.enrollmentYear(),user.getEnrollmentYear());
         if(request.schoolId()!=null) {
             var member=schools.selectSchool(id,request.schoolId(),request.inviteCode());
-            schools.updateProfile(id,member.getId(),request.enrollmentYear(),request.className(),request.studentNo());
+            schools.updateProfile(id,member.getId(),request.enrollmentYear(),request.className(),request.studentNo(),request.realName());
         } else if(request.inviteCode()!=null && !request.inviteCode().isBlank()) {
             throw ApiException.validation("请先选择邀请码对应的学校");
         }
@@ -49,6 +49,8 @@ public class OnboardingService {
         if(clean(request.className())==null || clean(request.studentNo())==null) throw ApiException.validation("请填写班级和学号");
         if(request.enrollmentYear()==null) throw ApiException.validation("请选择入学年级");
         years.validate(request.enrollmentYear(),user.getEnrollmentYear());
+        var member = AcademicProfile.membership(schools.myMemberships(id));
+        if (member != null) schools.updateProfile(id,member.getId(),request.enrollmentYear(),request.className(),request.studentNo(),request.realName());
         user.setEnrollmentYear(request.enrollmentYear());
         user.setClassName(clean(request.className())); user.setStudentNo(clean(request.studentNo()));
         users.updateOnboarding(user);
@@ -66,7 +68,10 @@ public class OnboardingService {
         if (year == null || className == null || studentNo == null) throw ApiException.validation("请补齐年级、班级和学号");
         years.validate(year, existing.enrollmentYear());
         var member = AcademicProfile.membership(memberships);
-        if (member != null) schools.updateProfile(id, member.getId(), year, className, studentNo);
+        if (member != null) {
+            String name = AcademicProfile.present(member.getRealName()) ? member.getRealName() : request.realName();
+            schools.updateProfile(id, member.getId(), year, className, studentNo, name);
+        }
         user.setEnrollmentYear(year);
         user.setClassName(className);
         user.setStudentNo(studentNo);

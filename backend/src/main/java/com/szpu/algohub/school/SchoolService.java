@@ -73,10 +73,10 @@ public class SchoolService {
     }
 
     @Transactional
-    public SchoolMember selectSchoolWithProfile(Long userId, Long schoolId, String inviteCode, Integer enrollmentYear, String className, String studentNo) {
+    public SchoolMember selectSchoolWithProfile(Long userId, Long schoolId, String inviteCode, Integer enrollmentYear, String className, String studentNo, String realName) {
         if (enrollmentYear == null) throw ApiException.validation("请选择入学年级");
         SchoolMember member = selectSchool(userId, schoolId, inviteCode);
-        return updateProfile(userId, member.getId(), enrollmentYear, className, studentNo);
+        return updateProfile(userId, member.getId(), enrollmentYear, className, studentNo, realName);
     }
 
     public School defaultSchool() {
@@ -92,19 +92,13 @@ public class SchoolService {
      */
     @Transactional
     public SchoolMember applyByInviteCode(Long userId, String inviteCode, Integer enrollmentYear,
-                                          String className, String studentNo) {
+                                          String className, String studentNo, String realName) {
         if (enrollmentYear == null) throw ApiException.validation("请选择入学年级");
         School school = schoolMapper.findByInviteCode(inviteCode == null ? "" : inviteCode.trim());
         if (school == null) {
             throw ApiException.validation("学校邀请码无效");
         }
-        SchoolMember member = selectSchool(userId, school.getId(), inviteCode);
-        years.validate(enrollmentYear, member.getEnrollmentYear());
-        member.setEnrollmentYear(enrollmentYear);
-        member.setClassName(className);
-        member.setStudentNo(studentNo);
-        memberMapper.updateProfile(member);
-        return memberMapper.findById(member.getId());
+        return selectSchoolWithProfile(userId, school.getId(), inviteCode, enrollmentYear, className, studentNo, realName);
     }
 
     public List<SchoolMember> myMemberships(Long userId) {
@@ -150,7 +144,7 @@ public class SchoolService {
 
     @Transactional
     public SchoolMember updateProfile(Long userId, Long memberId, Integer enrollmentYear,
-                                      String className, String studentNo) {
+                                      String className, String studentNo, String realName) {
         if (enrollmentYear == null) throw ApiException.validation("请选择入学年级");
         memberMapper.lockUser(userId);
         SchoolMember member = memberMapper.findById(memberId);
@@ -158,6 +152,8 @@ public class SchoolService {
             throw ApiException.notFound("成员信息不存在");
         }
         years.validate(enrollmentYear, member.getEnrollmentYear());
+        member.setRealName(requireRealName(realName));
+        memberMapper.updateRealName(member);
         member.setEnrollmentYear(enrollmentYear);
         member.setClassName(className);
         member.setStudentNo(studentNo);
@@ -181,6 +177,14 @@ public class SchoolService {
         memberMapper.updateProfile(member);
         memberMapper.auditProfile(actor, memberId);
         return memberMapper.findById(memberId);
+    }
+
+    private static String requireRealName(String name) {
+        String value = name == null ? "" : name.strip();
+        if (value.isEmpty() || value.length() > 64 || value.codePoints().anyMatch(Character::isISOControl)) {
+            throw ApiException.validation("请填写真实姓名，限 64 个字符");
+        }
+        return value;
     }
 
     private static String blankToNull(String value) {

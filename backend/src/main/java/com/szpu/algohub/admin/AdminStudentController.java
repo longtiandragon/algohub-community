@@ -19,7 +19,7 @@ public class AdminStudentController {
             m.applied_at as "appliedAt", m.reviewed_at as "reviewedAt",
             u.created_at as "createdAt", m.id as "membershipId", m.school_id as "schoolId",
             sc.name as "schoolName", coalesce(m.status,'NONE') as "membershipStatus",
-            m.student_no as "studentNo", m.enrollment_year as "enrollmentYear", m.class_name as "className",
+            m.real_name as "realName", m.student_no as "studentNo", m.enrollment_year as "enrollmentYear", m.class_name as "className",
             exists(select 1 from verified_login_email e where e.user_id=u.id) as "emailVerified",
             (select count(*) from platform_account a where a.user_id=u.id and a.ownership_status='VERIFIED'
                 and a.platform <> 'LANQIAO') as "verifiedCount"
@@ -33,7 +33,7 @@ public class AdminStudentController {
           left join verified_login_email ve on ve.user_id=u.id
           where u.role='STUDENT' and (:schoolId=0 or m.school_id=:schoolId)
             and (:unaffiliated=false or not exists(select 1 from school_member sm where sm.user_id=u.id and sm.status='APPROVED'))
-            and (:q='' or position(lower(:q) in lower(u.username||' '||u.display_name||' '||coalesce(m.student_no,'')||' '||coalesce(ve.email,u.email,'')))>0)
+            and (:q='' or position(lower(:q) in lower(u.username||' '||u.display_name||' '||coalesce(m.real_name,'')||' '||coalesce(m.student_no,'')||' '||coalesce(ve.email,u.email,'')))>0)
             and (:year=0 or m.enrollment_year=:year)
             and (:className='' or coalesce(m.class_name,'')=:className)
             and (:membership='' or coalesce(m.status,'NONE')=:membership)
