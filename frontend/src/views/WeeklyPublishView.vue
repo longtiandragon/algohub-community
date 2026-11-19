@@ -32,6 +32,9 @@ const picked = computed<DirectoryStudent[]>({
   },
 })
 const week = ref(minWeek), timed = ref(false), publishTime = ref(''), editStatus = ref<ReleaseStatus>()
+const history = ref<{weekStart: string; status: ReleaseStatus}[]>([])
+const duplicateWeek = computed(() => history.value.some(item => item.weekStart === week.value))
+const statusLabels = { DRAFT: '草稿', SCHEDULED: '定时发布', PUBLISHED: '已发布' }
 const home = computed(() => ({ path: '/weekly', query: { school: school.value, week: week.value } }))
 useTopBarOverride(() => ({title:'布置训练赛', parent: '/weekly?school=' + school.value, parentTitle:'每周训练赛'}))
 let generation = 0, previewGeneration = 0
@@ -47,7 +50,7 @@ async function init() {
   const token = ++generation
   ++previewGeneration
   ready.value = false; error.value = ''; identifying.value = false
-  meta.value = undefined; url.value = ''; targets.value = {}; students.value = []; ids.value = []; previousIds.value = []
+  history.value = []; meta.value = undefined; url.value = ''; targets.value = {}; students.value = []; ids.value = []; previousIds.value = []
   timed.value = false; publishTime.value = ''; audience.value = 'ALL'; editStatus.value = undefined
   const value = String(route.query.week || minWeek)
   week.value = /^\d{4}-\d{2}-\d{2}$/.test(value) && value >= minWeek && value <= maxWeek ? weekMonday(value) : minWeek
@@ -76,7 +79,7 @@ async function init() {
   } catch (e) { if (token === generation) error.value = e instanceof Error ? e.message : '无法加载配置' }
 }
 watch(() => [school.value, edit.value], init, { immediate: true })
-function resetPreview() { ++previewGeneration; identifying.value = false; meta.value = undefined; previousIds.value = [] }
+function resetPreview() { history.value = []; ++previewGeneration; identifying.value = false; meta.value = undefined; previousIds.value = [] }
 async function recognize() {
   if (!url.value.trim()) return
   const token = ++previewGeneration
@@ -86,6 +89,7 @@ async function recognize() {
     if (token !== previewGeneration) return
     const previous = await studentsById(school.value, data.lastStudentIds || [])
     if (token !== previewGeneration) return
+    history.value = data.history || []
     students.value = previous
     meta.value = data.meta; years.value = data.years; targets.value = Object.fromEntries(data.years.filter(y => y in data.targets).map(y => [y,data.targets[y]]))
     audience.value = data.audience || 'ALL'; ids.value = []; previousIds.value = data.lastStudentIds || []
@@ -96,7 +100,7 @@ const selected = computed(() => Object.entries(targets.value).sort(([a],[b])=>Nu
 const selectedNames = computed(() => students.value.filter(s=>ids.value.includes(s.userId)).map(s=>s.realName || s.name))
 const eligiblePrevious = computed(() => previousIds.value.filter(id=>students.value.some(s => s.userId === id && s.year != null && s.year in targets.value)))
 const validRules = computed(() => meta.value && selected.value.length && selected.value.every(([,n])=>Number.isInteger(n)&&n>0&&n<=meta.value!.tasks.length))
-const valid = computed(() => validRules.value && (audience.value === 'ALL' || ids.value.length > 0) && week.value >= minWeek && week.value <= maxWeek)
+const valid = computed(() => !duplicateWeek.value && validRules.value && (audience.value === 'ALL' || ids.value.length > 0) && week.value >= minWeek && week.value <= maxWeek)
 function toggle(year: number) {
   if (year in targets.value) { delete targets.value[year]; ids.value = ids.value.filter(id=>students.value.some(s=>s.userId===id && s.year!==year)) }
   else targets.value[year] = 1
@@ -151,6 +155,10 @@ async function discard() {
           <div class="url"><el-input id="weekly-contest-url" v-model="url" :disabled="saving || !!edit" placeholder="粘贴 Codeforces、AtCoder 或牛客比赛链接" @input="resetPreview" @keyup.enter="recognize" />
           <el-button v-if="!edit" type="primary" :loading="identifying" :disabled="!url.trim() || saving" @click="recognize">识别比赛</el-button></div>
           <div v-if="meta" class="recognized"><i class="i-lucide-circle-check" /> {{ meta.title }} · {{ platformName(meta.platform) }} · {{ meta.tasks.length }} 题</div>
+          <div v-if="history.length" class="assignment-history" role="status">
+            <strong>{{ duplicateWeek ? '所选训练周已安排这场比赛，请选择其他周。' : '本校已安排过这场比赛，可以继续布置到所选训练周。' }}</strong>
+            <ul><li v-for="item in history" :key="item.weekStart">{{ item.weekStart }} 至 {{ shiftDate(item.weekStart, 6) }} · {{ statusLabels[item.status] }}</li></ul>
+          </div>
         </section>
         <section><h2>训练周</h2><WeekPicker v-model="week" :min-week="minWeek" :max-week="maxWeek" /></section>
         <section><h2>年级目标</h2><small v-if="!meta" class="secondary">识别比赛后，可设置各年级目标。</small>
@@ -186,6 +194,8 @@ async function discard() {
   </main>
 </template>
 <style scoped>
+.assignment-history{margin-top:10px;padding:10px 12px;border-left:3px solid var(--el-color-warning);background:var(--el-color-warning-light-9);font-size:14px}
+.assignment-history ul{margin:4px 0 0;padding-left:18px}
 .heading.link-heading{display:flex;align-items:center;gap:4px}
 .link-help{display:inline-grid;place-items:center;width:28px;height:28px;border:0;background:transparent;color:var(--el-text-color-secondary);cursor:pointer;font-size:17px}
 .link-help:hover,.link-help:focus-visible{color:var(--el-color-primary)}

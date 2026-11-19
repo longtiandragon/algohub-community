@@ -73,7 +73,7 @@ function publishedDate(value: string | null) {
             <article v-for="contest in contests" :key="contest.id" class="contest">
               <RouterLink :to="{path:'/weekly/'+school.id+'/'+contest.id,query:{week}}" class="contest-link">
                 <span class="platform-icon"><img v-if="platformLogoUrl(contest.meta.platform)" :src="platformLogoUrl(contest.meta.platform)!" alt="" /><i v-else class="i-lucide-code-2" /></span>
-                <span class="contest-text"><strong>{{ contest.meta.title }}</strong><small>{{ platformName(contest.meta.platform) }} · {{ contest.meta.category }}<span class="audience">{{ contest.audience === 'SELECTED' ? '指定学生' : '全校开放' }}</span></small></span>
+                <span class="contest-text"><strong>{{ contest.meta.title }}</strong><small>{{ platformName(contest.meta.platform) }} · {{ contest.meta.category }}<span class="audience">{{ contest.audience === 'SELECTED' ? '指定学生' : '全校开放' }}</span></small><small v-if="contest.myProgress">我的目标：至少 {{ contest.myProgress.goal }} 题</small></span>
                 <i class="i-lucide-chevron-right" aria-hidden="true" />
               </RouterLink>
             </article>

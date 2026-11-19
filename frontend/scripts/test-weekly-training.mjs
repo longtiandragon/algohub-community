@@ -26,7 +26,7 @@ try {
   const cell = { solved: true, wrong: 2, score: 1, seconds: 83 }
   const rows = [{ userId: 4, name: '测试甲', realName: '王明远', kind: 'VIRTUAL', rank: 1, cells: { A: cell }, score: 1, penalty: 83 },
     { userId: 4, name: '测试甲', realName: '王明远', kind: 'PRACTICE', rank: null, cells: { E: cell }, score: null, penalty: null }]
-  const contest = () => ({ id: 6, meta, targets, weekStart: submitted.weekStart, students, status: submitted.status, audience: submitted.audience })
+  const contest = () => ({ id: 6, meta, targets, myProgress:{...students[0],userId:user.id}, weekStart: submitted.weekStart, students, status: submitted.status, audience: submitted.audience })
   await page.setRequestInterception(true)
   page.on('request', req => {
     const url = new URL(req.url()), path = url.pathname
@@ -35,7 +35,7 @@ try {
     if (path === '/api/auth/refresh') data = { accessToken: 'mock', user }
     else if (path === '/api/me') data = user
     else if (path === '/api/weekly/schools') data = [{ id: 1, name: '测试学校', manage: management }]
-    else if (path === '/api/weekly/1/preview') data = { meta, targets, years: [2026, 2025, 2024, 2023], audience: 'ALL', lastStudentIds: [] }
+    else if (path === '/api/weekly/1/preview') data = { meta, targets, history: submitted ? [{weekStart:submitted.weekStart,status:'PUBLISHED'}] : [], years: [2026, 2025, 2024, 2023], audience: 'ALL', lastStudentIds: [] }
     else if (path === '/api/schools/1/students/directory') {
       const roster = Array.from({length: 65}, (_, i) => ({
         userId: i + 4, name: '学生' + i, year: 2026, className: '计算机一班', studentNo: '202600' + i,
@@ -86,6 +86,7 @@ try {
   await waitText(meta.title)
   await button('立即发布')
   await waitText('累计过题榜')
+  await waitText('我的目标：至少 4 题')
   assert.deepEqual(submitted.targets, targets)
   assert.equal(submitted.url, meta.url)
   assert.equal(new Date(submitted.weekStart + 'T00:00:00Z').getUTCDay(), 1)
@@ -106,6 +107,11 @@ try {
   await page.type('#weekly-contest-url', meta.url)
   await button('识别比赛')
   await waitText(meta.title)
+  await waitText('所选训练周已安排这场比赛')
+  assert.ok(await page.$eval('.weekly-editor .actions button', button => button.disabled))
+  await page.click('button[aria-label="下一周"]')
+  await waitText('可以继续布置到所选训练周')
+  await waitText(submitted.weekStart)
   await page.click('input[value="SELECTED"]')
   await button('选择学生')
   await waitText('计算机一班')
@@ -150,8 +156,11 @@ try {
   assert.deepEqual(scheduled.studentIds, [4,34])
   assert.equal(scheduled.status, 'SCHEDULED')
   assert.equal(scheduled.audience, 'SELECTED')
+  await page.click('button[aria-label="上一周"]')
+  await page.waitForSelector('a[href^="/weekly/1/6"]')
   await page.focus('a[href^="/weekly/1/6"]')
   await page.keyboard.press('Enter')
+  await waitText('我的目标：至少 4 题 · 已通过 5 题')
   await waitText('参赛成绩')
   await waitText('王明远')
   assert.equal(await page.$$eval('.standings tbody th.name', rows => rows.filter(row => row.textContent.includes('王明远')).length), 2)

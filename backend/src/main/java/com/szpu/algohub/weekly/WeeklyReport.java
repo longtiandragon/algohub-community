@@ -32,13 +32,13 @@ public class WeeklyReport {
     }
 
     public List<Map<String,Object>> list(long school, long actor, boolean manager) {
-        return load(school,null,null,actor,manager).stream().map(t->t.output(false,manager)).toList();
+        return load(school,null,null,actor,manager).stream().map(t->t.output(false,manager,actor)).toList();
     }
 
     public Map<String,Object> detail(long school, long id, long actor, boolean manager) {
         var matches = load(school,id,null,actor,manager);
         if (matches.isEmpty()) throw ApiException.notFound("本校训练赛不存在");
-        return matches.getFirst().output(true,manager);
+        return matches.getFirst().output(true,manager,actor);
     }
 
     public Map<String,Object> overview(long school,java.time.LocalDate day,long actor,boolean manager) {
@@ -69,7 +69,7 @@ public class WeeklyReport {
             previous=solved;
             ranking.add(Map.of("userId",entry.student.id,"name",entry.student.name,"realName",entry.student.realName,"year",entry.student.year,"rank",rank,"solved",solved));
         }
-        return Map.of("weekStart",monday,"ranking",ranking,"contests",trainings.stream().filter(t -> monday.toString().equals(t.weekStart)).map(t->t.output(false,manager)).toList());
+        return Map.of("weekStart",monday,"ranking",ranking,"contests",trainings.stream().filter(t -> monday.toString().equals(t.weekStart)).map(t->t.output(false,manager,actor)).toList());
     }
 
     private List<Training> load(long school,Long id,java.time.LocalDate week,long actor,boolean manager) {
@@ -192,12 +192,14 @@ public class WeeklyReport {
             }
         }
 
-        Map<String,Object> output(boolean detail,boolean manager) {
+        Map<String,Object> output(boolean detail,boolean manager,long actor) {
             Map<String,Object> out = new LinkedHashMap<>();
             out.put("id",id);
             out.put("weekStart",weekStart);
             out.put("meta",meta);
             out.put("targets",targets);
+            Student viewer = students.get(actor);
+            if (viewer != null) out.put("myProgress", viewer.progress(targets.get(viewer.year)));
             out.put("audience",audience);
             out.put("status",status);
             out.put("publishAt",publishAt);

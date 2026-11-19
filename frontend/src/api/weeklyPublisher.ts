@@ -13,7 +13,7 @@ export interface Assignment {
   publishAt: string | null
 }
 export const identify = (school: number, url: string) => get<ContestPreview & {
-  audience: Audience; lastStudentIds: number[]
+  audience: Audience; lastStudentIds: number[]; history: { weekStart: string; status: ReleaseStatus }[]
 }>(`/weekly/${school}/preview`, { url })
 export const assignmentDetail = (school: number, id: number) =>
   get<ContestDetail & Pick<Assignment, 'audience' | 'status' | 'studentIds' | 'publishAt'>>(`/weekly/${school}/${id}`)

@@ -31,6 +31,7 @@ export interface TrainingStudent {
   status: 'MET' | 'PENDING' | 'UNBOUND' | 'SYNCING' | 'ERROR'
 }
 export interface WeeklyContest {
+  myProgress?: TrainingStudent
   id: number
   weekStart: string
   meta: ContestMeta

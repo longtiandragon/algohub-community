@@ -77,6 +77,11 @@ class WeeklyPublishingTest {
         mvc.perform(get(endpoint(school)+"/preview").param("url",URL).with(as(manager)))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.targets['2025']").value(2));
         publish(manager,BODY.replace("11-18","11-23"));
+        mvc.perform(get(endpoint(school)+"/preview").param("url",URL).with(as(leader)))
+            .andExpect(jsonPath("$.data.history.length()").value(2))
+            .andExpect(jsonPath("$.data.history[0].weekStart").value("2026-11-23"))
+            .andExpect(jsonPath("$.data.history[1].weekStart").value("2026-11-16"))
+            .andExpect(jsonPath("$.data.history[1].status").value("PUBLISHED"));
         mvc.perform(post(endpoint(school)).with(as(manager)).contentType(MediaType.APPLICATION_JSON).content(BODY))
             .andExpect(status().isConflict());
         mvc.perform(get(endpoint(school)+"/"+id).with(as(student))).andExpect(status().isOk())

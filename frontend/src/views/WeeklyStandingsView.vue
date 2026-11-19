@@ -75,6 +75,7 @@ function toggleMark(key: string) { openMark.value = openMark.value === key ? und
       <header class="contest-head"><div>
         <div class="text-sm text-muted">{{ platformName(contest.meta.platform) }} · {{ contest.meta.category }} · {{ contest.weekStart }} 训练周</div>
         <h1 class="my-1.5 break-words text-2xl text-ink">{{ contest.meta.title }}</h1>
+        <p v-if="contest.myProgress" class="my-2 text-sm text-body">我的目标：至少 {{ contest.myProgress.goal }} 题 · 已通过 {{ contest.myProgress.solved }} 题</p>
         </div><div class="actions"><a :href="contest.meta.url" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-sm text-brand-600">原站比赛 <i class="i-lucide-external-link" aria-hidden="true" /></a><el-button type="primary" @click="load()">刷新榜单</el-button></div>
       </header>
       <section aria-label="校内榜单">

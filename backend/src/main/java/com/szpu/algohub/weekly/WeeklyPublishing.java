@@ -71,6 +71,11 @@ class WeeklyPublishing {
     }
 
     Map<String,Object> preview(long school, WeeklySource.Meta meta) {
+        var history = db.queryForList("""
+            select week_start::text as "weekStart", effective_status as status
+            from weekly_effective_training where school_id=? and platform=? and contest_ref=?
+            order by week_start desc
+            """, school, meta.platform(), meta.ref());
         var templates=db.queryForList("""
             select targets::text,audience from weekly_defaults where school_id=? and platform=? and category=?
             """,school,meta.platform(),meta.category());
@@ -79,7 +84,7 @@ class WeeklyPublishing {
               and platform=? and metadata->>'category'=? and audience='SELECTED' order by id desc limit 1) t
             """,Long.class,school,meta.platform(),meta.category());
         try {
-            return Map.of("meta",meta,"years",years(school),"lastStudentIds",last,
+            return Map.of("meta",meta,"history",history,"years",years(school),"lastStudentIds",last,
                 "audience",templates.isEmpty()?"ALL":templates.getFirst().get("audience"),
                 "targets",templates.isEmpty()?Map.of():json.readTree((String)templates.getFirst().get("targets")));
         } catch(java.io.IOException e) {throw new IllegalStateException(e);}
