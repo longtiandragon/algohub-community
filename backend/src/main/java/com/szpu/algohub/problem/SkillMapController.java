@@ -1,5 +1,6 @@
 package com.szpu.algohub.problem;
 
+import java.util.List;
 import java.util.Map;
 
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,6 +26,11 @@ public class SkillMapController {
     @GetMapping
     public ApiResult<Map<String, Object>> map(@RequestParam(required = false) String platform) {
         return ApiResult.ok(skillMapService.map(CurrentUser.requireId(), platform));
+    }
+
+    @GetMapping("/categories")
+    public ApiResult<List<String>> categoryNames(@RequestParam(required = false) String platform) {
+        return ApiResult.ok(skillMapService.categoryNames(CurrentUser.requireId(), platform));
     }
 
     /** 某个分类下我通过的题、还没通过的题与难度分布。 */

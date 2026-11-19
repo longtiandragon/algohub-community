@@ -24,6 +24,7 @@ const props = defineProps<{
   readOnly?: boolean
   /** 最长连续（按北京时间自然日，只算能确认通过时间的记录） */
   longestStreak: number | null
+  streakLoading?: boolean
   loading?: boolean
 }>()
 
@@ -130,7 +131,7 @@ const kpis = computed(() => [
           {{ kpi.label }}<InfoTip v-if="kpi.tip" :title="kpi.label">{{ kpi.tip }}</InfoTip>
         </dt>
         <dd class="m-0 flex items-baseline gap-1">
-          <Skeleton v-if="loading" class="h-7 w-16" />
+          <Skeleton v-if="kpi.key === 'streak' ? (streakLoading ?? loading) : loading" class="h-7 w-16" />
           <template v-else>
             <span class="num text-2xl text-ink font-semibold leading-tight md:text-[30px]">{{ kpi.value ?? '—' }}</span>
             <span v-if="kpi.value != null" class="text-[12.5px] text-muted md:text-[13.5px]">{{ kpi.unit }}</span>

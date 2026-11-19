@@ -125,6 +125,18 @@ class ProblemsetServiceTest {
     }
 
     @Test
+    void subsequentPagesCanOmitOnlyCatalog() {
+        problem("CODEFORCES", "400C", "Catalog", 1200, 10, true, List.of("dp"));
+        Query first = query(null, null, null, null, null, null);
+        var original = problemsetService.search(userA, first);
+        var compact = problemsetService.search(userA, first, false);
+        assertThat(original).containsKey("catalog");
+        assertThat(compact).doesNotContainKey("catalog");
+        assertThat(original).containsAllEntriesOf(compact);
+        assertThat(compact).hasSize(original.size() - 1);
+    }
+
+    @Test
     void onlyCatalogProblemsAreListed() {
         problem("CODEFORCES", "400A", "题库里的", 1200, 9000, true, List.of("dp"));
         problem("CODEFORCES", "400B", "做过但不在题库", 1200, 0, false, List.of("dp"));

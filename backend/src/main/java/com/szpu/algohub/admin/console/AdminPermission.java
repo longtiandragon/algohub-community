@@ -23,6 +23,12 @@ public enum AdminPermission {
     ADMINS("管理员与权限", "设置或取消管理员、调整管理员权限", "/api/admin/admins", "/api/admin/school-admins");
 
     /** 所有管理员都能访问：查自己有哪些权限 */
+    public static final String NAVIGATION_COUNTS = "/api/admin/navigation-counts";
+
+    public static boolean sharedAdminPath(String path) {
+        return ME_PATH.equals(path) || NAVIGATION_COUNTS.equals(path);
+    }
+
     public static final String ME_PATH = "/api/admin/me";
 
     private final String label;

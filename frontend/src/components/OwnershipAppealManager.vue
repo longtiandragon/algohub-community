@@ -28,6 +28,7 @@ interface AppealRow {
   reviewerUsername: string | null
 }
 
+const emit = defineEmits<{ updated: [] }>()
 const rows = ref<AppealRow[]>([])
 const loading = ref(false)
 const status = ref('PENDING')
@@ -59,6 +60,7 @@ async function review(row: AppealRow, approve: boolean) {
     busy.value = row.id
     await post(`/admin/ownership-appeals/${row.id}/${approve ? 'approve' : 'reject'}`, { note: value })
     ElMessage.success(approve ? '已通过，归属已转移并排队同步' : '已驳回')
+    emit('updated')
     await load()
   } catch (e) {
     if (e !== 'cancel' && e !== 'close') notifyError(e)

@@ -42,6 +42,10 @@ public class ProblemsetService {
     }
 
     public Map<String, Object> search(Long userId, Query query) {
+        return search(userId, query, true);
+    }
+
+    public Map<String, Object> search(Long userId, Query query, boolean includeCatalog) {
         if (query.page() < 1 || query.page() > MAX_PAGE) {
             throw ApiException.validation("页码需要在 1～" + MAX_PAGE + " 之间，请再缩小筛选范围");
         }
@@ -85,7 +89,7 @@ public class ProblemsetService {
         result.put("page", query.page());
         result.put("size", query.size());
         result.put("onlyRated", onlyRated);
-        result.put("catalog", mapper.catalogOverview(userId));
+        if (includeCatalog) result.put("catalog", mapper.catalogOverview(userId));
         result.put("note", "只列出已同步进题库的题目；没触发过题库同步的平台在这里是空的，"
                 + "不拿同学做过的题冒充题库。「已通过」来自你自己的同步记录，"
                 + "难度与通过人数是平台公开值，只在同一平台内比较，不做跨平台换算。"

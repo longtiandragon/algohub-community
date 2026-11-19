@@ -237,7 +237,7 @@ async function onLogin() {
           <div class="flex flex-wrap justify-between gap-x-4 gap-y-2 text-[13px]">
             <RouterLink to="/forgot-password" class="auth-link">忘记密码？用已验证的邮箱找回</RouterLink>
           </div>
-          <a v-if="isAdminHost" href="https://www.algohub.top/login" class="auth-link self-start text-[13px]">← 返回用户登录</a>
+          <a v-if="isAdminHost" href="https://algohub.top/login" class="auth-link self-start text-[13px]">← 返回用户登录</a>
           <RouterLink v-else :to="emailModeLink" class="auth-link self-start text-[13px]">← 返回邮箱验证码登录</RouterLink>
         </template>
 

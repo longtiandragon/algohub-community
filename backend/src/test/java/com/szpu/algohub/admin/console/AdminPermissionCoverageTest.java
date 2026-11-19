@@ -29,7 +29,7 @@ class AdminPermissionCoverageTest {
                     continue;
                 }
                 admin.add(pattern);
-                if (!pattern.equals(AdminPermission.ME_PATH) && AdminPermission.forPath(pattern).isEmpty()) {
+                if (!AdminPermission.sharedAdminPath(pattern) && AdminPermission.forPath(pattern).isEmpty()) {
                     missing.add(pattern);
                 }
             }

@@ -3,6 +3,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { categoryName, problemLabel } from '@/utils/problemLabel'
 import { ElMessage } from 'element-plus'
 import { del, get, notifyError, post } from '@/api/client'
+import { getPlatformCapabilities } from '@/api/platformCapabilities'
 import type { PlatformCapability } from '@/api/types'
 import PlatformLogo from '@/components/PlatformLogo.vue'
 import DifficultyTag from '@/components/DifficultyTag.vue'
@@ -97,7 +98,7 @@ async function load() {
 
 async function loadOptions() {
   try {
-    platforms.value = await get<PlatformCapability[]>('/platforms/capabilities')
+    platforms.value = await getPlatformCapabilities()
   } catch {
     platforms.value = []
   }

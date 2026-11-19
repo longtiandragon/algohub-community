@@ -47,6 +47,9 @@ cat > "$temporary/bin/curl" <<'MOCK'
 #!/usr/bin/env bash
 set -eu
 target="$(readlink "$TEST_RELEASE_ROOT/base/algohub.jar")"
+if [[ "$target" == *bbbbbbb* ]]; then
+  echo "health-frontend:$(cat "$TEST_RELEASE_ROOT/base/frontend/index.html")" >> "$TEST_RELEASE_ROOT/events"
+fi
 [[ "$target" != *bbbbbbb* || "${TEST_NEW_HEALTH:-ok}" == ok ]]
 MOCK
 cat > "$temporary/bin/journalctl" <<'MOCK'
@@ -102,6 +105,8 @@ is_current() { [[ "$(readlink "$temporary/base/algohub.jar")" == "releases/$1/al
 prepare
 run_release activate "$temporary/package.tar.gz"
 check is_current "$new"
+check grep -qx health-frontend:old "$temporary/events"
+check test "$(cat "$temporary/base/frontend/index.html")" = new
 check test "$(cat "$temporary/base/releases/$new/SCHEMA.sha256")" = "$fingerprint"
 check test "$(head -n 1 "$temporary/events")" = backup
 pass 'healthy activation records the supported schema after the backup'

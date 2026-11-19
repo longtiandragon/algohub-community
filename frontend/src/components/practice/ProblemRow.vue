@@ -27,7 +27,7 @@ export interface ProblemsetRow {
  * 题库的一行。电脑上是表格的一行：状态、题号（前面平台图标）、题名、算法方向、难度、通过人数、收藏星；
  * 手机上两行：题号 + 题名，下面难度、方向、通过人数。
  */
-const props = defineProps<{ row: ProblemsetRow }>()
+const props = defineProps<{ row: ProblemsetRow; markPending?: boolean }>()
 const mark = defineModel<Mark>('mark', { default: null })
 
 const label = computed(() => problemCodeBare(props.row))
@@ -67,7 +67,8 @@ const solvers = computed(() => (props.row.solvedCount === null ? null : formatSo
         <template v-else><span class="hidden md:inline">—</span></template>
       </span>
     </span>
-    <BookmarkButton v-model="mark" :problem-id="row.id" :accepted="row.solved" icon-only class="pset-star" />
+    <span v-if="markPending" class="pset-star" aria-label="收藏状态未就绪">…</span>
+    <BookmarkButton v-else v-model="mark" :problem-id="row.id" :accepted="row.solved" icon-only class="pset-star" />
   </li>
 </template>
 

@@ -51,6 +51,18 @@ class AdminConsoleTest {
     }
 
     @Test
+    void navigationCountsRespectTheAdminsGrants() throws Exception {
+        String path = "/api/admin/navigation-counts";
+        mvc.perform(get(path).header("Authorization", token(user("ADMIN", "SCHOOLS"))))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.members").isNumber())
+                .andExpect(jsonPath("$.data.sync").doesNotExist()).andExpect(jsonPath("$.data.appeals").doesNotExist());
+        mvc.perform(get(path).header("Authorization", token(user("ADMIN", "SYNC"))))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.sync").isNumber())
+                .andExpect(jsonPath("$.data.appeals").isNumber()).andExpect(jsonPath("$.data.members").doesNotExist());
+        mvc.perform(get(path).header("Authorization", token(user("STUDENT", null)))).andExpect(status().isForbidden());
+    }
+
+    @Test
     void restrictedAdminOnlyReachesGrantedAreas() throws Exception {
         String schools = token(user("ADMIN", "SCHOOLS,CONTENT"));
         mvc.perform(get("/api/admin/students").header("Authorization", schools)).andExpect(status().isOk());

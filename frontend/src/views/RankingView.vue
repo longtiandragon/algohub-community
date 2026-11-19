@@ -4,6 +4,7 @@ import StudentRemarkCard from '@/components/school/StudentRemarkCard.vue'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { get, notifyError } from '@/api/client'
+import { getPlatformCapabilities } from '@/api/platformCapabilities'
 import type { PlatformCapability, Ranking } from '@/api/types'
 import MyPosition from '@/components/ranking/MyPosition.vue'
 import RankingCoverage from '@/components/ranking/RankingCoverage.vue'
@@ -90,7 +91,7 @@ async function load(more = false) {
 }
 
 onMounted(async () => {
-  get<PlatformCapability[]>('/platforms/capabilities')
+  getPlatformCapabilities()
     .then((list) => (capabilities.value = list))
     .catch(() => { /* 平台筛选只是少了选项，读不到不影响榜单 */ })
   await load()

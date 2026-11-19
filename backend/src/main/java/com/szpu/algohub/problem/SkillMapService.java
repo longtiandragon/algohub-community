@@ -33,6 +33,10 @@ public class SkillMapService {
         this.recommendationMapper = recommendationMapper;
     }
 
+    public List<String> categoryNames(Long userId, String platformName) {
+        return mapper.categoryNames(resolvePlatform(userId, platformName).name());
+    }
+
     public Map<String, Object> map(Long userId, String platformName) {
         Platform platform = resolvePlatform(userId, platformName);
         Map<String, Object> result = new LinkedHashMap<>();

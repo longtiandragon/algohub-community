@@ -1,30 +1,31 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { del, get, notifyError, post } from '@/api/client'
 import { ALL_PERMISSIONS, loadAdminMe, type AdminMe, type AdminPermission } from '@/api/admin'
 import type { NavResource, PlatformAccount, SyncTask } from '@/api/types'
-import AdminsPanel from '@/components/admin/AdminsPanel.vue'
-import AnnouncementsPanel from '@/components/admin/AnnouncementsPanel.vue'
-import AuditPanel from '@/components/admin/AuditPanel.vue'
-import DashboardPanel from '@/components/admin/DashboardPanel.vue'
-import EnrollmentYearsPanel from '@/components/admin/EnrollmentYearsPanel.vue'
-import NavPanel from '@/components/admin/NavPanel.vue'
-import RemindersPanel from '@/components/admin/RemindersPanel.vue'
-import SchoolInvitePanel from '@/components/admin/SchoolInvitePanel.vue'
-import StudentsPanel from '@/components/admin/StudentsPanel.vue'
-import SyncPanel from '@/components/admin/SyncPanel.vue'
-import UsersPanel from '@/components/admin/UsersPanel.vue'
-import OwnershipAppealManager from '@/components/OwnershipAppealManager.vue'
-import ProblemGroupManager from '@/components/ProblemGroupManager.vue'
-import TagMappingManager from '@/components/TagMappingManager.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import PageHeader from '@/components/ui/PageHeader.vue'
 import PageTabs from '@/components/ui/PageTabs.vue'
 import Skeleton from '@/components/ui/Skeleton.vue'
 import { useBreakpoint } from '@/composables/useBreakpoint'
 import { useTopBarOverride } from '@/composables/useTopBarOverride'
+
+const AdminsPanel = defineAsyncComponent(() => import('@/components/admin/AdminsPanel.vue'))
+const AnnouncementsPanel = defineAsyncComponent(() => import('@/components/admin/AnnouncementsPanel.vue'))
+const AuditPanel = defineAsyncComponent(() => import('@/components/admin/AuditPanel.vue'))
+const DashboardPanel = defineAsyncComponent(() => import('@/components/admin/DashboardPanel.vue'))
+const EnrollmentYearsPanel = defineAsyncComponent(() => import('@/components/admin/EnrollmentYearsPanel.vue'))
+const NavPanel = defineAsyncComponent(() => import('@/components/admin/NavPanel.vue'))
+const RemindersPanel = defineAsyncComponent(() => import('@/components/admin/RemindersPanel.vue'))
+const SchoolInvitePanel = defineAsyncComponent(() => import('@/components/admin/SchoolInvitePanel.vue'))
+const StudentsPanel = defineAsyncComponent(() => import('@/components/admin/StudentsPanel.vue'))
+const SyncPanel = defineAsyncComponent(() => import('@/components/admin/SyncPanel.vue'))
+const UsersPanel = defineAsyncComponent(() => import('@/components/admin/UsersPanel.vue'))
+const OwnershipAppealManager = defineAsyncComponent(() => import('@/components/OwnershipAppealManager.vue'))
+const ProblemGroupManager = defineAsyncComponent(() => import('@/components/ProblemGroupManager.vue'))
+const TagMappingManager = defineAsyncComponent(() => import('@/components/TagMappingManager.vue'))
 
 /**
  * 管理后台，按五组分区（概览、用户、内容、数据、系统）：
@@ -68,10 +69,9 @@ const router = useRouter()
 const { isMobile, lg } = useBreakpoint()
 
 const me = ref<AdminMe | null>(null)
-const pendingMembers = ref(0)
+const counts = ref<Partial<Record<SectionKey, number>>>({})
 const navItems = ref<NavResource[]>([])
 const overview = ref<Overview | null>(null)
-const pendingAppeals = ref(0)
 const loading = ref(true)
 const taskStatus = ref('')
 const accountStatus = ref('')
@@ -102,41 +102,41 @@ function go(key: string) {
 }
 
 function countOf(key: SectionKey) {
-  if (key === 'members') return pendingMembers.value
-  if (key === 'appeals') return pendingAppeals.value
-  if (key === 'sync') return overview.value?.failed ?? 0
-  return 0
+  return counts.value[key] ?? 0
 }
 const tabLinks = computed(() => visible.value.map((s) => ({ key: s.key, label: s.label, to: tabLink(s.key), count: countOf(s.key) })))
 
-/** 分区的待办数和各面板要的数据：只读有权限的，没权限的接口不去碰（会 403） */
-async function loadCounts() {
-  const jobs: Promise<unknown>[] = []
-  if (has('SCHOOLS')) {
-    jobs.push(get<{ summary: { pending: number } }>('/admin/students', { size: 1 }).then((m) => (pendingMembers.value = m.summary.pending)))
-  }
-  if (has('CONTENT')) jobs.push(get<NavResource[]>('/admin/nav').then((n) => (navItems.value = n)))
-  if (has('SYNC')) jobs.push(get<Overview>('/admin/sync/overview', { limit: 200 }).then((o) => (overview.value = o)))
-  await Promise.all(jobs)
-  if (has('SYNC')) {
-    try {
-      pendingAppeals.value = (await get<unknown[]>('/admin/ownership-appeals', { status: 'PENDING' })).length
-    } catch {
-      pendingAppeals.value = 0
+let detailsRequest = 0
+async function loadDetails(section: SectionKey | null) {
+  const request = ++detailsRequest
+  try {
+    if (section === 'sync') {
+      const data = await get<Overview>('/admin/sync/overview', { limit: 200 })
+      if (request === detailsRequest) overview.value = data
+    } else if (section === 'nav') {
+      const data = await get<NavResource[]>('/admin/nav')
+      if (request === detailsRequest) navItems.value = data
     }
-  }
+  } catch (e) { if (request === detailsRequest) notifyError(e) }
 }
-
+watch(tab, section => { void loadDetails(section) })
+let countsRequest = 0
+async function loadCounts() {
+  const request = ++countsRequest
+  try {
+    const result = await get<Partial<Record<SectionKey, number>>>('/admin/navigation-counts')
+    if (request === countsRequest) counts.value = result
+  } catch (e) { if (request === countsRequest) notifyError(e) }
+}
 async function load() {
   loading.value = true
   try {
+    const previous = tab.value
     me.value = await loadAdminMe()
-    await loadCounts()
-  } catch (e) {
-    notifyError(e)
-  } finally {
-    loading.value = false
-  }
+    // A changed tab is loaded by its watcher, including the initial authorized tab.
+    await Promise.all([loadCounts(), previous === tab.value ? loadDetails(tab.value) : undefined])
+  } catch (e) { notifyError(e) }
+  finally { loading.value = false }
 }
 onMounted(load)
 function refreshAll() {
@@ -318,7 +318,7 @@ function openFromDashboard(target: { tab: string; failedOnly?: boolean }) {
         <AdminsPanel v-else-if="tab === 'admins'" :permissions="permissions" />
         <AuditPanel v-else-if="tab === 'audit'" :permissions="permissions" />
         <div v-else class="legacy-panel">
-          <OwnershipAppealManager v-if="tab === 'appeals'" />
+          <OwnershipAppealManager v-if="tab === 'appeals'" @updated="loadCounts" />
           <ProblemGroupManager v-else-if="tab === 'problem-groups'" />
           <TagMappingManager v-else-if="tab === 'tags'" />
           <NavPanel v-else-if="tab === 'nav'" :items="navItems" :loading="loading && !navItems.length" @changed="load" />

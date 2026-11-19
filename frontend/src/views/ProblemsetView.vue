@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter, type LocationQueryRaw } from 'vue-router'
 import { get, notifyError } from '@/api/client'
+import { getPlatformCapabilities } from '@/api/platformCapabilities'
 import type { PlatformCapability } from '@/api/types'
 import PlatformLogo from '@/components/PlatformLogo.vue'
 import ProblemRow, { type ProblemsetRow } from '@/components/practice/ProblemRow.vue'
@@ -30,7 +31,7 @@ interface ProblemsetPage {
   page: number
   size: number
   onlyRated: boolean
-  catalog: CatalogRow[]
+  catalog?: CatalogRow[]
   note: string
 }
 
@@ -123,7 +124,10 @@ const marks = ref<Record<number, Mark>>({})
 
 const items = computed(() => data.value?.items ?? [])
 const total = computed(() => data.value?.total ?? 0)
-const catalog = computed(() => data.value?.catalog ?? [])
+const catalog = ref<CatalogRow[]>([])
+let hasCatalog = false
+const marksReady = ref(false)
+const marksError = ref(false)
 const pageCount = computed(() => Math.min(MAX_PAGE, Math.ceil(total.value / PAGE_SIZE)))
 /** 题库为空说明还没同步过：引导去同步，而不是让人以为平台坏了 */
 const catalogEmpty = computed(() => data.value !== null && catalog.value.length === 0)
@@ -177,6 +181,7 @@ const fields = computed<FilterField[]>(() => {
 })
 
 let requestId = 0
+let displayedPageId = 0
 async function load() {
   const id = ++requestId
   loading.value = true
@@ -190,11 +195,20 @@ async function load() {
       minDifficulty: range.value?.[0],
       maxDifficulty: range.value?.[1],
       page: page.value,
+      includeCatalog: !hasCatalog,
       size: PAGE_SIZE
     })
     if (id !== requestId) return
+    if (result.catalog) {
+      catalog.value = result.catalog
+      hasCatalog = true
+    }
+    displayedPageId = id
     data.value = result
-    await loadMarks(id)
+    marksReady.value = false
+    marksError.value = false
+    marks.value = {}
+    void loadMarks(id)
   } catch (e) {
     if (id === requestId) notifyError(e)
   } finally {
@@ -204,31 +218,27 @@ async function load() {
 
 /** 一次取回当前页所有题的收藏状态，不每题请求一次 */
 async function loadMarks(id: number) {
+  marksError.value = false
   const ids = items.value.map((i) => i.id)
   if (!ids.length) {
-    marks.value = {}
+    marksReady.value = true
     return
   }
   try {
     const found = await get<Record<string, Exclude<Mark, null>>>('/bookmarks/status', { problemIds: ids.join(',') })
-    if (id === requestId) marks.value = Object.fromEntries(ids.map((i) => [i, found[String(i)] ?? null]))
+    if (id !== displayedPageId) return
+    marks.value = Object.fromEntries(ids.map((i) => [i, found[String(i)] ?? null]))
+    marksReady.value = true
   } catch {
-    marks.value = {}
+    if (id === displayedPageId) marksError.value = true
   }
 }
 
 async function loadOptions() {
-  try {
-    platforms.value = await get<PlatformCapability[]>('/platforms/capabilities')
-  } catch {
-    platforms.value = []
-  }
-  try {
-    const map = await get<{ categories: { category: string }[] }>('/skill-map')
-    categories.value = (map.categories ?? []).map((c) => c.category)
-  } catch {
-    categories.value = []
-  }
+  await Promise.all([
+    getPlatformCapabilities().then(rows => { platforms.value = rows }).catch(() => {}),
+    get<string[]>('/skill-map/categories').then(rows => { categories.value = rows }).catch(() => {})
+  ])
 }
 
 watch(
@@ -358,8 +368,9 @@ const TIPS = ['难度和通过人数是各平台公开的数字，只在同一�
           <span class="text-right">通过人数</span>
           <span />
         </div>
+        <button v-if="marksError" type="button" @click="loadMarks(displayedPageId)">收藏状态读取失败，重试</button>
         <ol class="m-0 list-none p-0 transition-opacity" :class="{ 'opacity-60': loading }">
-          <ProblemRow v-for="row in items" :key="row.id" v-model:mark="marks[row.id]" :row="row" />
+          <ProblemRow v-for="row in items" :key="row.id" v-model:mark="marks[row.id]" :mark-pending="!marksReady" :row="row" />
         </ol>
         <div class="flex flex-col items-center gap-2 border-t border-line-soft border-t-solid px-4 py-3 md:(flex-row justify-between px-5)">
           <span class="text-[13px] text-muted" data-test="total">

@@ -54,6 +54,12 @@ public class ContestController {
         return ApiResult.ok(result);
     }
 
+    @GetMapping("/upcoming")
+    public ApiResult<List<Contest>> homeUpcoming(@RequestParam(defaultValue = "3") int limit) {
+        CurrentUser.requireId();
+        return ApiResult.ok(contestService.homeUpcoming(Limits.clamp(limit, 3)));
+    }
+
     /** 比赛行本身不存收藏状态，这里按当前用户的收藏集合逐条补一个标记。 */
     private Map<String, Object> withFavorite(Contest contest, Set<Long> favorited) {
         Map<String, Object> row = new java.util.LinkedHashMap<>();

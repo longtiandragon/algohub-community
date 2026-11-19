@@ -12,9 +12,14 @@
     <meta property="og:description" content="汇集算法练习、题单与成长记录。" />
     <link rel="icon" type="image/svg+xml" href="/algohub-mark.svg" />
     <title>AlgoHub</title>
+    <style>
+      .startup-status { margin: 0; min-height: 100vh; display: grid; place-items: center; font: 16px system-ui, sans-serif; color: #465363; background: #fafbfc; }
+      @media (prefers-color-scheme: dark) { .startup-status { color: #ced6e0; background: #181c23; } }
+      body:has(.startup-status) { margin: 0; }
+    </style>
   </head>
   <body>
-    <div id="app"></div>
+    <div id="app"><p class="startup-status" role="status">正在打开 AlgoHub…</p></div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

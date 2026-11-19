@@ -3,6 +3,7 @@ import { platformName } from '@/utils/platformBrand'
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { del, get, notifyError, post } from '@/api/client'
+import { getPlatformCapabilities } from '@/api/platformCapabilities'
 import type { PlatformCapability } from '@/api/types'
 import { httpUrl } from '@/utils/url'
 
@@ -63,7 +64,7 @@ async function load() {
     const [g, c, caps] = await Promise.all([
       get<Group[]>('/admin/problem-groups'),
       get<{ groupCount: number; mappedProblemCount: number }>('/admin/problem-groups/coverage'),
-      get<PlatformCapability[]>('/platforms/capabilities')
+      getPlatformCapabilities()
     ])
     groups.value = g
     coverage.value = c
