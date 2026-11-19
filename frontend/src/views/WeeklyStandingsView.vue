@@ -2,7 +2,7 @@
 import { provideStudentRemarks } from '@/composables/useStudentRemarks'
 import StudentRemarkCard from '@/components/school/StudentRemarkCard.vue'
 import RemarkName from '@/components/school/RemarkName.vue'
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { loadDetail, type ContestDetail, type ScoreCell, type ScoreRow } from '@/api/weeklyTraining'
 import { notifyError } from '@/api/client'
@@ -15,25 +15,40 @@ useTopBarOverride(() => ({ title: '训练赛详情', parent: '/weekly?school=' +
 const contest = ref<ContestDetail>(), loading = ref(false), error = ref('')
 const openMark = ref<string>()
 let request = 0
-onBeforeUnmount(() => { request++ })
-async function load() {
+let timer: ReturnType<typeof setInterval>
+let polling = false
+async function poll() {
+  if (document.hidden || !contest.value || polling || loading.value) return
+  polling = true
+  try { await load(true) } finally { polling = false }
+}
+onMounted(() => {
+  timer = setInterval(poll, 15000)
+  document.addEventListener('visibilitychange', poll)
+})
+onBeforeUnmount(() => {
+  request++
+  clearInterval(timer)
+  document.removeEventListener('visibilitychange', poll)
+})
+async function load(background = false) {
   const token = ++request
-  contest.value = undefined; openMark.value = undefined; loading.value = true; error.value = ''
+  if (!background) { contest.value = undefined; openMark.value = undefined; loading.value = true; error.value = '' }
   try {
     const data = await loadDetail(Number(route.params.school), Number(route.params.id))
     if (token === request) contest.value = data
   } catch (e) {
-    if (token === request) { error.value = '无法读取这场校内训练赛'; notifyError(e) }
+    if (token === request && !background) { error.value = '无法读取这场校内训练赛'; notifyError(e) }
   } finally { if (token === request) loading.value = false }
 }
-watch(() => [route.params.school, route.params.id], load, { immediate: true })
+watch(() => [route.params.school, route.params.id], () => load(), { immediate: true })
 const showScore = computed(() => contest.value?.meta.platform !== 'CODEFORCES' || ['CF', 'IOI'].includes(contest.value.meta.scoring ?? ''))
 const groups = computed(() => {
   const rows = contest.value?.rows ?? []
   return [
-    { label: '参赛成绩', rows: rows.filter(r => r.kind !== 'PRACTICE') },
-    { label: '补题记录', rows: rows.filter(r => r.kind === 'PRACTICE') }
-  ].filter(group => group.rows.length)
+    { label: '参赛成绩', empty: '暂无参赛成绩', rows: rows.filter(r => r.kind !== 'PRACTICE') },
+    { label: '补题记录', empty: '暂无补题记录', rows: rows.filter(r => r.kind === 'PRACTICE') }
+  ]
 })
 function time(seconds: number) {
   const h = Math.floor(seconds / 3600)
@@ -58,24 +73,24 @@ provideStudentRemarks(() => Number(route.params.school))
     <RouterLink :to="{ path: '/weekly', query: { school: route.params.school, week: contest?.weekStart } }" class="mb-4 hidden items-center gap-1 text-sm text-brand-600 md:inline-flex">
       <i class="i-lucide-arrow-left" aria-hidden="true" /> 每周训练赛
     </RouterLink>
-    <p v-if="error" role="alert">{{ error }} <el-button text @click="load">重试</el-button></p>
+    <p v-if="error" role="alert">{{ error }} <el-button text @click="load()">重试</el-button></p>
     <div v-else-if="loading" v-loading="true" class="min-h-32" aria-label="正在读取校内榜单" />
     <template v-else-if="contest">
       <header class="contest-head"><div>
         <div class="text-sm text-muted">{{ platformName(contest.meta.platform) }} · {{ contest.meta.category }} · {{ contest.weekStart }} 训练周</div>
         <h1 class="my-1.5 break-words text-2xl text-ink">{{ contest.meta.title }}</h1>
-        </div><div class="actions"><a :href="contest.meta.url" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-sm text-brand-600">原站比赛 <i class="i-lucide-external-link" aria-hidden="true" /></a><el-button type="primary" @click="load">刷新榜单</el-button></div>
+        </div><div class="actions"><a :href="contest.meta.url" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-sm text-brand-600">原站比赛 <i class="i-lucide-external-link" aria-hidden="true" /></a><el-button type="primary" @click="load()">刷新榜单</el-button></div>
       </header>
       <section aria-label="校内榜单">
-        
+
         <p v-if="contest.standingsRefreshFailed" role="status" class="m-0 px-4 py-3 text-sm text-muted">
           部分成绩暂未更新，已保留最近同步的记录。{{ contest.meta.platform === 'ATCODER' ? '如持续出现，请管理员检查源站登录授权。' : '系统会自动重试。' }}
         </p>
-        <p v-if="!groups.length" class="m-0 px-4 py-3 text-sm text-muted">{{ contest.meta.platform === 'ATCODER' ? '已同步的过题计入训练进度，当前暂无可展示的参赛榜单。' : '当前暂无可展示的参赛或补题记录。' }}</p>
-        <div v-if="groups.length || Object.values(contest.problemStats).some(s => s.tried > 0)" tabindex="0" role="region" aria-label="校内逐题榜单，可横向滚动" class="standings-scroll">
+        <div tabindex="0" role="region" aria-label="校内逐题榜单，可横向滚动" class="standings-scroll">
           <section v-for="group in groups" :key="group.label" class="score-section"><h2>{{ group.label }}</h2><table class="standings"><colgroup><col class="rank-col"><col class="student-col"><col><col v-if="showScore"><col class="time-col"><col v-for="task in contest.meta.tasks" :key="task.index"></colgroup>
             <thead><tr><th scope="col">校内名次</th><th scope="col" class="name">学生</th><th scope="col">通过</th><th v-if="showScore" scope="col">分数</th><th scope="col">罚时</th><th v-for="task in contest.meta.tasks" :key="task.index" scope="col">{{ task.index }}</th></tr></thead>
             <tbody>
+              <tr v-if="!group.rows.length"><td class="text-muted" :colspan="contest.meta.tasks.length + (showScore ? 5 : 4)">{{ group.empty }}</td></tr>
               <tr v-for="(row, i) in group.rows" :key="row.userId + ':' + row.kind + ':' + i">
                 <td>{{ row.kind === 'PRACTICE' ? '' : row.rank ?? '—' }}</td>
                 <th scope="row" class="name">
