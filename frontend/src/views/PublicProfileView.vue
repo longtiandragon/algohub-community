@@ -116,7 +116,7 @@ onBeforeUnmount(() => observer?.disconnect())
 <template>
   <div class="page" data-test="public-profile">
     <PageHeader title="同学档案" description="档案内容按隐私设置和你的管理权限展示。" class="mb-4">
-      <template #actions><RouterLink to="/ranking" class="text-brand-600">返回刷题排行</RouterLink></template>
+      <template #actions><RouterLink to="/ranking" class="text-brand-600">返回排行榜</RouterLink></template>
     </PageHeader>
     <p v-if="loading" role="status" class="text-muted">正在加载档案…</p>
     <div v-else-if="error" role="status" class="rounded-card bg-surface p-6"><p>{{ error }}</p><el-button @click="load">重试</el-button></div>

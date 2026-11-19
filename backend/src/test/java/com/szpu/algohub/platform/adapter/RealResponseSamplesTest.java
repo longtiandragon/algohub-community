@@ -187,6 +187,30 @@ class RealResponseSamplesTest {
         fails(() -> leetcode("common/cloudflare-challenge.html"), ErrorKind.RATE_LIMITED, "防护验证页");
     }
 
+    @Test void leetcodeContestHistoryKeepsOnlyRatedResultsAndOrdersByContestTime() throws Exception {
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var data = mapper.readTree("""
+            {"userContestRanking":{"attendedContestsCount":2},"userContestRankingHistory":[
+              {"attended":true,"ranking":2,"rating":3379.825,
+               "contest":{"title":"Weekly Contest 494","titleCn":"第 494 场周赛","startTime":1774146600}},
+              {"attended":false,"rating":1725.068},
+              {"attended":true,"ranking":208,"rating":1725.068,
+               "contest":{"title":"第 160 场周赛","titleCn":"","startTime":1572143400}}]}
+            """);
+        var results = LeetCodeCnAdapter.parseContestHistory(data);
+        assertThat(results).hasSize(2);
+        assertThat(results.getFirst().contestKey()).isEqualTo("1572143400");
+        assertThat(results.getFirst().contestName()).isEqualTo("第 160 场周赛");
+        assertThat(results.getFirst().oldRating()).isNull();
+        assertThat(results.getLast().place()).isEqualTo(2);
+        assertThat(results.getLast().oldRating()).isEqualTo(1725);
+        assertThat(results.getLast().newRating()).isEqualTo(3380);
+        var empty = mapper.readTree("{\"userContestRanking\":null,\"userContestRankingHistory\":null}");
+        assertThat(LeetCodeCnAdapter.parseContestHistory(empty)).isEmpty();
+        ((com.fasterxml.jackson.databind.node.ObjectNode) data.path("userContestRanking")).put("attendedContestsCount",3);
+        fails(() -> LeetCodeCnAdapter.parseContestHistory(data), ErrorKind.PARSE_ERROR, "场数不一致");
+    }
+
     private SubmissionPage leetcodeRecent(String file) {
         when(http.postJson(eq(Platform.LEETCODE_CN), contains("noj-go"), anyString(), anyMap(), any())).thenReturn(sample(file));
         return new LeetCodeCnAdapter(http).fetchSubmissions(new SyncContext(1L, "sample-user", "sample-user", "700000000", null, null));

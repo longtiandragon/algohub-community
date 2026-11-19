@@ -141,7 +141,7 @@ const router = createRouter({
       path: '/ranking',
       name: 'ranking',
       component: () => import('@/views/RankingView.vue'),
-      meta: { title: '刷题排行' }
+      meta: { title: '排行榜' }
     },
     {
       path: '/contests',

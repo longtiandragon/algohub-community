@@ -14,7 +14,7 @@ import { campusDate } from '@/utils/statistics'
 import EChart from './EChart.vue'
 
 /**
- * 比赛与 Rating：每个账号一张小卡（当前、最高、计分场数），Codeforces、AtCoder 的计分比赛曲线，和最近 8 场。
+ * 比赛与 Rating：每个账号一张小卡（当前、最高、计分场数），并展示已同步的计分比赛曲线和最近 8 场比赛。
  * 不计分的场次只进表格不进曲线；一场都没参加过就照实说，不画一条 0 分线。最近的比赛电脑上是表格，手机上是卡片。
  */
 const props = defineProps<{
@@ -135,7 +135,7 @@ function dateText(value: string) {
       <h2 class="m-0 flex items-center gap-1 text-base text-ink font-semibold">
         比赛与 Rating
         <InfoTip title="这些记录从哪来">
-          同步 Codeforces、AtCoder 账号时一起读到的比赛记录。不计分的场次只列在表格里，不画进曲线；表现分只有 AtCoder 提供。
+          比赛记录来自 Codeforces、AtCoder、牛客、LeetCode 和洛谷。曲线展示各账号在计分比赛后的 Rating，表格还收录已同步的不计分场次。表现分以源站提供的数据为准。
         </InfoTip>
       </h2>
       <span v-if="totalContests" class="text-[12.5px] text-muted">共 <span class="num">{{ totalContests }}</span> 场</span>
@@ -150,7 +150,7 @@ function dateText(value: string) {
       v-else-if="!series.length"
       icon="i-lucide-trophy"
       title="还没有比赛记录"
-      description="Codeforces、AtCoder 账号同步后，这里显示参加过的比赛和 Rating 变化。"
+      description="平台账号同步到比赛记录后，这里会显示最近参赛场次和 Rating 变化。"
       action="看看最近的比赛"
       to="/contests"
       :bordered="false"

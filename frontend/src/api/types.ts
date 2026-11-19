@@ -109,7 +109,7 @@ export interface PlatformAccount {
   trackerAccepted?: number | null
   trackerMerged?: number | null
   trackerConflicts?: number | null
-  /** 比赛与 Rating（Codeforces、AtCoder）：参加场次、计分场次、当前与最高 Rating；没有记录时不给 */
+  /** 平台账号同步到的参赛场次、计分场次、当前与最高 Rating；没有记录时不给 */
   contests?: number | null
   ratedContests?: number | null
   currentRating?: number | null

@@ -5,15 +5,18 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.szpu.algohub.common.ApiException;
 import com.szpu.algohub.common.ErrorKind;
 import com.szpu.algohub.platform.PlatformDtos.FetchedProblem;
+import com.szpu.algohub.platform.PlatformDtos.RatedContest;
 import com.szpu.algohub.platform.PlatformDtos.TotalsSnapshot;
 import org.jsoup.Jsoup;
 import java.util.*;
+import java.time.Instant;
 import java.util.regex.Pattern;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 
 /** Reads Luogu content-only JSON and embedded page data; never executes page scripts. */
 public final class LuoguPracticeParser {
+    private static final long MAX_EPOCH_SECOND = Instant.parse("9999-12-31T23:59:59Z").getEpochSecond();
     private static final ObjectMapper JSON = new ObjectMapper();
     private static JsonNode payload(String body, String expectedUid) {
         JsonNode root;
@@ -88,7 +91,47 @@ public final class LuoguPracticeParser {
             note += "；公开题单比资料汇总多 " + (unique.size() - count.asInt()) + " 题，按逐题题单收录";
         }
         return new TotalsSnapshot(unique.size(), null, Map.of(),
-                note, List.copyOf(unique.values()));
+                note, List.copyOf(unique.values()), Map.of(), optionalElo(data));
+    }
+
+    private static List<RatedContest> optionalElo(JsonNode data) {
+        try {
+            return eloRows(data.path("elo"));
+        } catch (ApiException unavailable) {
+            // Elo 字段不可用时，独立的公开题单依然有效。
+            return null;
+        }
+    }
+
+    static List<RatedContest> elo(String body, String uid) {
+        return eloRows(payload(body, uid).path("elo"));
+    }
+
+    private static List<RatedContest> eloRows(JsonNode records) {
+        if (!records.isArray()) throw new ApiException(ErrorKind.PARSE_ERROR, "洛谷未返回比赛等级分记录");
+        List<RatedContest> result = new ArrayList<>();
+        Set<Long> contests = new HashSet<>();
+        for (JsonNode row : records) {
+            JsonNode contest = row.path("contest");
+            JsonNode id = contest.path("id"), rating = row.path("rating"), time = row.path("time");
+            JsonNode diff = row.path("prevDiff");
+            if (!id.isIntegralNumber() || !id.canConvertToLong() || id.asLong() <= 0
+                    || !contests.add(id.asLong()) || !contest.path("name").isTextual() || contest.path("name").asText().isBlank()
+                    || !rating.isIntegralNumber() || !rating.canConvertToInt()
+                    || !time.isIntegralNumber() || !time.canConvertToLong() || time.asLong() <= 0
+                    || time.asLong() > MAX_EPOCH_SECOND
+                    || !(diff.isNull() || (diff.isIntegralNumber() && diff.canConvertToInt()))
+                    || (row.hasNonNull("userCount") && row.path("userCount").asInt(-1) != records.size())) {
+                throw new ApiException(ErrorKind.PARSE_ERROR, "洛谷比赛等级分记录不完整");
+            }
+            long previous = rating.asLong() - diff.asLong(0);
+            if (previous < Integer.MIN_VALUE || previous > Integer.MAX_VALUE)
+                throw new ApiException(ErrorKind.PARSE_ERROR, "洛谷比赛等级分变化超出范围");
+            result.add(new RatedContest(id.asText(), contest.path("name").asText(), null,
+                    diff.isNull() ? null : (int) previous, rating.asInt(), null, true,
+                    Instant.ofEpochSecond(time.asLong())));
+        }
+        return List.copyOf(result);
     }
 
     /**

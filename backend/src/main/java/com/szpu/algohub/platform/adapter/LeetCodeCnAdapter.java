@@ -2,6 +2,7 @@ package com.szpu.algohub.platform.adapter;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,6 +23,7 @@ import com.szpu.algohub.platform.PlatformDtos.FetchedProblem;
 import com.szpu.algohub.platform.PlatformDtos.FetchedSubmission;
 import com.szpu.algohub.platform.PlatformDtos.OwnershipProof;
 import com.szpu.algohub.platform.PlatformDtos.PlatformCapability;
+import com.szpu.algohub.platform.PlatformDtos.RatedContest;
 import com.szpu.algohub.platform.PlatformDtos.ResolvedIdentity;
 import com.szpu.algohub.platform.PlatformDtos.SubmissionPage;
 import com.szpu.algohub.platform.PlatformDtos.SyncContext;
@@ -56,13 +58,78 @@ public class LeetCodeCnAdapter implements PlatformAdapter {
     public PlatformCapability capability() {
         return new PlatformCapability(Platform.LEETCODE_CN, true, true, true, false,
                 "OFFICIAL", "NONE", true,
-                "公开接口提供 Easy/Medium/Hard 通过题数与周赛信息；逐题明细只公开最近 15 道通过的题"
+                "公开接口提供 Easy/Medium/Hard 通过题数和个人竞赛 Rating 记录；逐题明细只公开最近 15 道通过的题"
                         + "（时间是最近一次通过），可用浏览器插件补历史 AC 明细，热力图每题只计首次 AC。");
     }
 
     @Override
     public String partialHistoryNote() {
         return "力扣只公开最近 15 道通过的题（每题一条，时间是最近一次通过），更早的 AC 明细可用力扣浏览器同步补充；首次 AC 日期以完整读取的历史为准";
+    }
+
+    @Override
+    public boolean contestHistorySupported() {
+        return true;
+    }
+
+    @Override
+    public List<RatedContest> fetchContestHistory(SyncContext context) {
+        JsonNode data = query(NOJ_GRAPHQL, """
+                query contestHistory($userSlug: String!) {
+                  userContestRanking(userSlug: $userSlug) { attendedContestsCount }
+                  userContestRankingHistory(userSlug: $userSlug) {
+                    attended ranking rating contest { title titleCn startTime }
+                  }
+                }
+                """, Map.of("userSlug", context.handle()), null);
+        return parseContestHistory(data);
+    }
+
+    private record ContestResult(long start, String title, int place, int rating) {}
+
+    static List<RatedContest> parseContestHistory(JsonNode data) {
+        JsonNode history = data.path("userContestRankingHistory");
+        JsonNode ranking = data.path("userContestRanking");
+        // 源站对没有竞赛记录的用户也可返回两个 null。
+        JsonNode count = ranking.path("attendedContestsCount");
+        if ((history.isNull() || (history.isArray() && history.isEmpty()))
+                && (ranking.isNull() || (count.isIntegralNumber() && count.asLong() == 0))) return List.of();
+        if (!history.isArray()) throw new ApiException(ErrorKind.PARSE_ERROR, "力扣竞赛历史结构与预期不符");
+        List<ContestResult> attended = new ArrayList<>();
+        for (JsonNode entry : history) {
+            if (!entry.path("attended").isBoolean()) {
+                throw new ApiException(ErrorKind.PARSE_ERROR, "力扣竞赛历史缺少参赛状态");
+            }
+            if (!entry.path("attended").asBoolean()) continue;
+            JsonNode contest = entry.path("contest");
+            JsonNode start = contest.path("startTime");
+            JsonNode place = entry.path("ranking");
+            JsonNode rating = entry.path("rating");
+            String title = contest.path("titleCn").asText("");
+            if (title.isBlank()) title = contest.path("title").asText("");
+            if (!start.isIntegralNumber() || !start.canConvertToLong() || start.asLong() <= 0
+                    || !place.isIntegralNumber() || !place.canConvertToInt() || place.asInt() <= 0
+                    || !rating.isNumber() || !rating.canConvertToInt() || title.isBlank()) {
+                throw new ApiException(ErrorKind.PARSE_ERROR, "力扣竞赛历史缺少比赛、时间、名次或 Rating");
+            }
+            attended.add(new ContestResult(start.asLong(), title, place.asInt(), (int) Math.round(rating.asDouble())));
+        }
+        if (!count.isIntegralNumber() || count.asLong() != attended.size()) {
+            throw new ApiException(ErrorKind.PARSE_ERROR, "力扣竞赛历史与个人参赛场数不一致");
+        }
+        attended.sort(Comparator.comparingLong(ContestResult::start));
+        List<RatedContest> results = new ArrayList<>(attended.size());
+        Integer previousRating = null;
+        long previousStart = 0;
+        for (ContestResult row : attended) {
+            // 历史接口只提供开始时间（无 slug 和结束时间）；以该时间标识比赛并排列曲线。
+            if (row.start() == previousStart) throw new ApiException(ErrorKind.PARSE_ERROR, "力扣竞赛历史的场次标识重复");
+            results.add(new RatedContest(Long.toString(row.start()), row.title(), row.place(), previousRating,
+                    row.rating(), null, true, Instant.ofEpochSecond(row.start())));
+            previousRating = row.rating();
+            previousStart = row.start();
+        }
+        return results;
     }
 
     /** 最近通过的题：每题一条、时间是最近一次通过。没有游标与分页，每轮都取这一份。 */

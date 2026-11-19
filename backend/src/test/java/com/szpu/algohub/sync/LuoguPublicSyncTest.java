@@ -58,6 +58,16 @@ class LuoguPublicSyncTest {
     }
 
     @Test
+    void publicSnapshotAlsoSyncsContestRatingWithoutCredentials() {
+        var rated = new RatedContest("123", "月赛", null, 998, 1024, null, true, java.time.Instant.EPOCH);
+        when(adapter.fetchTotals(any())).thenReturn(new TotalsSnapshot(42, null, Map.of(), "", java.util.List.of(), Map.of(),
+                java.util.List.of(rated)));
+        service.syncAccount(task);
+        verify(dataStatus).success(eq(7L), eq(AccountDataStatusMapper.RATING), eq(1), contains("1024"));
+        verifyNoInteractions(submissions);
+    }
+
+    @Test
     void publicSnapshotDoesNotResetCompletedHistory() {
         when(cursors.findCompleted(7L, SyncService.CURSOR_FORWARD)).thenReturn(true);
         service.syncAccount(task);

@@ -1,5 +1,6 @@
 package com.szpu.algohub.platform.adapter;
 
+import java.util.List;
 import java.util.Map;
 
 import org.springframework.stereotype.Component;
@@ -13,6 +14,7 @@ import com.szpu.algohub.platform.Platform;
 import com.szpu.algohub.platform.PlatformAdapter;
 import com.szpu.algohub.platform.PlatformDtos.OwnershipProof;
 import com.szpu.algohub.platform.PlatformDtos.PlatformCapability;
+import com.szpu.algohub.platform.PlatformDtos.RatedContest;
 import com.szpu.algohub.platform.PlatformDtos.ResolvedIdentity;
 import com.szpu.algohub.platform.PlatformDtos.SyncContext;
 import com.szpu.algohub.platform.PlatformDtos.TotalsSnapshot;
@@ -44,7 +46,7 @@ public class LuoguAdapter implements PlatformAdapter {
     public PlatformCapability capability() {
         return new PlatformCapability(Platform.LUOGU, true, false, true, false,
                 "OFFICIAL", "OFFICIAL", false,
-                "公开题单无需登录；AC 评测时间由用户本人在洛谷浏览器内主动同步。站点不保存洛谷 Cookie。首次完整同步后进入近期排行与动态。");
+                "公开题单与比赛等级分无需登录；AC 评测时间由用户本人在洛谷浏览器内主动同步。站点不保存洛谷 Cookie。首次完整同步后进入近期排行与动态。");
     }
 
     @Override
@@ -115,11 +117,25 @@ public class LuoguAdapter implements PlatformAdapter {
     }
 
     @Override
+    public boolean contestHistorySupported() {
+        return true;
+    }
+
+    private String practice(String uid) {
+        return http.get(Platform.LUOGU, USER + uid + "/practice",
+                Map.of("Referer", "https://www.luogu.com.cn/", "x-lentille-request", "content-only"), null);
+    }
+
+    @Override
+    public List<RatedContest> fetchContestHistory(SyncContext context) {
+        String uid = context.platformUid() != null ? context.platformUid() : context.handle();
+        return LuoguPracticeParser.elo(practice(uid), uid);
+    }
+
+    @Override
     public TotalsSnapshot fetchTotals(SyncContext context) {
         String uid = context.platformUid() != null ? context.platformUid() : context.handle();
-        String body = http.get(Platform.LUOGU, USER + uid + "/practice",
-                Map.of("Referer", "https://www.luogu.com.cn/", "x-lentille-request", "content-only"), null);
-        TotalsSnapshot snapshot = LuoguPracticeParser.parse(body, uid);
+        TotalsSnapshot snapshot = LuoguPracticeParser.parse(practice(uid), uid);
         Map<java.time.LocalDate, Integer> activity = Map.of();
         String note = snapshot.rawExtra() + "；公开数据匿名同步，无需维持 Cookie";
         try {
@@ -131,7 +147,7 @@ public class LuoguAdapter implements PlatformAdapter {
             note += "；每日平台活动暂不可用，保留此前活动缓存";
         }
         return new TotalsSnapshot(snapshot.solvedTotal(), snapshot.submissionTotal(),
-                snapshot.difficultyBreakdown(), note, snapshot.solvedProblems(), activity);
+                snapshot.difficultyBreakdown(), note, snapshot.solvedProblems(), activity, snapshot.ratedContests());
     }
 
     private JsonNode readJson(String body) {

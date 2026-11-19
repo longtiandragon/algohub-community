@@ -147,7 +147,7 @@ const option = computed<EChartsOption>(() => {
 })
 
 /* ------------------------------ 三张小表 ------------------------------ */
-/** 路由名换成页面标题（「ranking」→「刷题排行」），认不出的原样显示 */
+/** 路由名换成页面标题（「ranking」→「排行榜」），认不出的原样显示 */
 const titles = computed(
   () => new Map(router.getRoutes().filter((r) => r.name).map((r): [string, string] => [String(r.name), r.meta.title ?? String(r.name)]))
 )

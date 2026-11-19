@@ -79,6 +79,14 @@ public class StatisticsController {
                 !target.equals(CurrentUser.requireId()) && !authService.canReadPrivateProfiles(CurrentUser.requireId())));
     }
 
+    @GetMapping("/ranking/rating")
+    public ApiResult<Map<String, Object>> ratingRanking(
+            @RequestParam(defaultValue = "SCHOOL") String scope,
+            @RequestParam(defaultValue = "CODEFORCES") String platform,
+            @RequestParam(defaultValue = "50") int limit) {
+        return ApiResult.ok(campusRankingService.ratingRanking(CurrentUser.requireId(), scope, platform, limit));
+    }
+
     /**
      * 排行榜。type: TOTAL / WEEK / MONTH / YEAR（近一年）；metric 仅对区间榜有效。
      */

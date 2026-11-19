@@ -103,7 +103,14 @@ public final class PlatformDtos {
     public record TotalsSnapshot(Integer solvedTotal, Integer submissionTotal,
                                  Map<String, Integer> difficultyBreakdown, String rawExtra,
                                  List<FetchedProblem> solvedProblems,
-                                 Map<java.time.LocalDate, Integer> dailyActivity) {
+                                 Map<java.time.LocalDate, Integer> dailyActivity,
+                                 List<RatedContest> ratedContests) {
+        public TotalsSnapshot(Integer solvedTotal, Integer submissionTotal,
+                              Map<String, Integer> difficultyBreakdown, String rawExtra,
+                              List<FetchedProblem> solvedProblems, Map<java.time.LocalDate, Integer> dailyActivity) {
+            this(solvedTotal, submissionTotal, difficultyBreakdown, rawExtra, solvedProblems, dailyActivity, null);
+        }
+
         public TotalsSnapshot(Integer solvedTotal, Integer submissionTotal,
                               Map<String, Integer> difficultyBreakdown, String rawExtra,
                               List<FetchedProblem> solvedProblems) {

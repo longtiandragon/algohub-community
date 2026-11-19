@@ -26,7 +26,7 @@ export const NAV_GROUPS: NavGroup[] = [
     title: '',
     items: [
       { path: '/', label: '数据总览', short: '总览', icon: 'i-lucide-house' },
-      { path: '/ranking', label: '刷题排行', short: '排行', icon: 'i-lucide-trophy' },
+      { path: '/ranking', label: '排行榜', short: '排行', icon: 'i-lucide-trophy' },
       { path: '/profile', label: '个人档案', short: '档案', icon: 'i-lucide-chart-column' },
       { path: '/accounts', label: '平台账号', short: '账号', icon: 'i-lucide-link', pending: true },
       { path: '/activity', label: '公开动态', short: '动态', icon: 'i-lucide-activity' },

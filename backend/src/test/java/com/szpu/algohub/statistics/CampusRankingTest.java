@@ -32,6 +32,78 @@ class CampusRankingTest {
     @Autowired StatisticsService statistics;
     @Autowired com.szpu.algohub.activity.ActivityMapper activity;
 
+    @Test void ratingBoardUsesRatedHistoryAndRanksVerifiedStudentsOnce() throws Exception {
+        jdbc.update("update school_member set real_name='校内姓名' where user_id=? and school_id=?", me, school);
+        Long main = jdbc.queryForObject("select id from platform_account where user_id=?", Long.class, me);
+        jdbc.update("""
+            insert into contest_participation(account_id,contest_key,contest_name,old_rating,new_rating,rated,finished_at)
+            values (?, 'first','first',1200,1600,true,now()-interval '3 days'),
+                   (?, 'latest','latest',1600,1500,true,now()-interval '2 days'),
+                   (?, 'vp','vp',1500,2400,false,now())
+            """, main, main, main);
+        // The lower-rated verified account has a different contest count and peak.
+        addRatedAccount(me, "CODEFORCES", "second", "VERIFIED", 1400);
+        addRatedAccount(me, "CODEFORCES", "unverified", "UNVERIFIED", 2800);
+        addRatedAccount(me, "ATCODER", "at", "VERIFIED", 550);
+        addRatedAccount(me, "NOWCODER", "nc", "VERIFIED", 1200);
+        addRatedAccount(me, "LEETCODE_CN", "lc", "VERIFIED", 1621);
+        addRatedAccount(me, "LUOGU", "lg", "VERIFIED", 1055);
+        Long tied = member("rating-tie",school,"一班",0,"VERIFIED",false);
+        addRatedAccount(tied,"CODEFORCES","tie","VERIFIED",1500);
+        Long third = member("rating-third",school,"二班",0,"VERIFIED",false);
+        addRatedAccount(third,"CODEFORCES","third","VERIFIED",1300);
+        Long outsider = withoutSchool("rating-outsider","VERIFIED");
+        addRatedAccount(outsider,"CODEFORCES","outside","VERIFIED",1700);
+        Long hidden = member("rating-hidden",school,"二班",0,"VERIFIED",false);
+        addRatedAccount(hidden,"CODEFORCES","hidden","VERIFIED",2100);
+        jdbc.update("insert into user_privacy(user_id,show_on_ranking) values (?,false)", hidden);
+
+        jdbc.update("insert into verified_login_email(user_id,email) values (?,?)", me, "rating-board@example.test");
+        AppUser account = new AppUser();
+        account.setId(me);
+        account.setRole("STUDENT");
+        account.setStatus("ACTIVE");
+        var login = user(new LoginUser(account));
+        String endpoint = "/api/stats/ranking/rating";
+        mvc.perform(get(endpoint)).andExpect(status().isUnauthorized());
+        mvc.perform(get(endpoint).with(login)).andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.scope").value("SCHOOL"))
+            .andExpect(jsonPath("$.data.participantCount").value(3))
+            .andExpect(jsonPath("$.data.rows[0].userId").value(me))
+            .andExpect(jsonPath("$.data.rows[0].realName").value("校内姓名"))
+            .andExpect(jsonPath("$.data.rows[0].currentRating").value(1500))
+            .andExpect(jsonPath("$.data.rows[0].ratingChange").value(-100))
+            .andExpect(jsonPath("$.data.rows[0].maxRating").value(1600))
+            .andExpect(jsonPath("$.data.rows[0].ratedContests").value(2))
+            .andExpect(jsonPath("$.data.rows[1].rank").value(1))
+            .andExpect(jsonPath("$.data.rows[2].rank").value(3));
+        mvc.perform(get(endpoint).with(login).param("platform","ATCODER"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.rows[0].currentRating").value(550));
+        mvc.perform(get(endpoint).with(login).param("platform","NOWCODER"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.rows[0].currentRating").value(1200));
+        mvc.perform(get(endpoint).with(login).param("platform","LEETCODE_CN"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.rows[0].currentRating").value(1621));
+        mvc.perform(get(endpoint).with(login).param("platform","LUOGU"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.rows[0].currentRating").value(1055));
+        mvc.perform(get(endpoint).with(login).param("platform","QOJ")).andExpect(status().isBadRequest());
+
+        @SuppressWarnings("unchecked")
+        var global = (java.util.List<Map<String,Object>>) service.ratingRanking(me,"GLOBAL","CODEFORCES",200).get("rows");
+        assertThat(global).extracting(row -> row.get("userId")).contains(me, outsider).doesNotContain(hidden);
+        assertThat(global).allSatisfy(row -> assertThat(row.get("realName")).isNull());
+        assertThat(service.ratingRanking(outsider,"SCHOOL","CODEFORCES",50).get("participantCount")).isEqualTo(0L);
+    }
+
+    private void addRatedAccount(Long student, String platform, String handle, String ownership, int rating) {
+        Long id = jdbc.queryForObject("""
+            insert into platform_account(user_id,platform,handle,ownership_status) values (?,?,?,?) returning id
+            """,Long.class,student,platform,handle,ownership);
+        jdbc.update("""
+            insert into contest_participation(account_id,contest_key,contest_name,new_rating,rated,finished_at)
+            values (?,'example','example',?,true,now())
+            """,id,rating);
+    }
+
     @Test void registeredNameIsOnlyReturnedInSchoolScope() {
         jdbc.update("update school_member set real_name=? where user_id=? and school_id=?", "校内姓名", me, school);
         for (String scope : new String[]{"SCHOOL", "GLOBAL"}) {

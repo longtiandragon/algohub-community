@@ -425,14 +425,7 @@ public class SyncService {
                         snapshotExtra(totals));
                 dataStatusMapper.success(account.getId(), AccountDataStatusMapper.TOTALS, totals.solvedTotal(), null);
             }
-            if (ratings != null) {
-                for (RatedContest c : ratings) {
-                    contestMapper.upsert(account.getId(), c.contestKey(), c.contestName(), c.place(), c.oldRating(),
-                            c.newRating(), c.performance(), c.rated(), c.finishedAt());
-                }
-                dataStatusMapper.success(account.getId(), AccountDataStatusMapper.RATING, ratings.size(),
-                        ratingDetail(ratings));
-            }
+            saveRatings(account, ratings);
             int count = 0;
             for (FetchedSubmission submission : page.submissions()) {
                 Long problemId = problemService.upsert(platform, submission.problem());
@@ -484,6 +477,15 @@ public class SyncService {
                 : snapshot.difficultyBreakdown().toString();
     }
 
+    private void saveRatings(PlatformAccount account, List<RatedContest> ratings) {
+        if (ratings == null) return;
+        for (RatedContest c : ratings) {
+            contestMapper.upsert(account.getId(), c.contestKey(), c.contestName(), c.place(), c.oldRating(),
+                    c.newRating(), c.performance(), c.rated(), c.finishedAt());
+        }
+        dataStatusMapper.success(account.getId(), AccountDataStatusMapper.RATING, ratings.size(), ratingDetail(ratings));
+    }
+
     /** 例如"参加 9 场（8 场计分），当前 478，最高 558"；一场都没参加过也照实写，不写成 0 分。 */
     static String ratingDetail(List<RatedContest> contests) {
         if (contests.isEmpty()) {
@@ -507,6 +509,7 @@ public class SyncService {
     private void saveTotals(SyncTask task, PlatformAccount account, TotalsSnapshot snapshot,
                             boolean completeTask, long start, RunProgress progress) {
         Platform platform = Platform.parse(account.getPlatform());
+        List<RatedContest> ratings = snapshot.ratedContests();
         fenced(task, account, () -> {
             // 通过题单只能证明"通过过"，没有提交或 AC 时间，不补造时间。
             if (snapshot.solvedProblems() != null) {
@@ -530,11 +533,13 @@ public class SyncService {
             boolean historyComplete = account.isHistoryComplete() || (platform == Platform.LUOGU
                     && Boolean.TRUE.equals(cursorMapper.findCompleted(account.getId(), CURSOR_FORWARD)));
             accountMapper.markSnapshotSuccess(account.getId(), historyComplete);
+            saveRatings(account, ratings);
             if (completeTask) {
                 finish(task, false, start);
             }
             return null;
         });
+        if (ratings != null) progress.succeeded(AccountDataStatusMapper.RATING);
         progress.succeeded(AccountDataStatusMapper.TOTALS);
         log.info("账号 {}({}) 快照更新：通过 {} 题", account.getHandle(), platform.name(), snapshot.solvedTotal());
     }

@@ -148,6 +148,53 @@ public interface CampusRankingMapper {
         @Param("metric") String metric, @Param("platform") String platform, @Param("year") Integer year,
         @Param("className") String className);
 
+    @Select("""
+        <script>
+        with eligible as (
+          <choose>
+            <when test="scope == 'SCHOOL'">
+              select e.account_id, e.user_id, e.display_name, m.real_name, e.class_name,
+                     null::varchar as school_name
+                from school_board_account e
+                join school_member m on m.school_id=e.school_id and m.user_id=e.user_id
+               where e.school_id=#{schoolId} and e.platform=#{platform}
+            </when>
+            <otherwise>
+              select a.id as account_id, u.id as user_id, u.display_name, null::varchar as real_name,
+                     null::varchar as class_name, membership.school_name
+                from platform_account a
+                join app_user u on u.id=a.user_id and u.status='ACTIVE' and u.role='STUDENT'
+                left join user_privacy p on p.user_id=u.id
+                left join lateral (
+                    select s.name as school_name from school_member m join school s on s.id=m.school_id
+                     where m.user_id=u.id and m.status='APPROVED' order by m.id limit 1
+                ) membership on true
+               where a.platform=#{platform} and a.ownership_status='VERIFIED'
+                 and coalesce(p.show_on_ranking,true) and coalesce(p.profile_visibility,'SCHOOL') != 'PRIVATE'
+            </otherwise>
+          </choose>
+        ), accounts as (
+            select distinct on (e.account_id) e.*, c.new_rating as current_rating,
+                   c.new_rating - c.old_rating as rating_change,
+                   max(c.new_rating) over (partition by e.account_id) as max_rating,
+                   count(*) over (partition by e.account_id) as rated_contests
+              from eligible e join contest_participation c on c.account_id=e.account_id
+             where c.rated and c.new_rating is not null
+             order by e.account_id, c.finished_at desc, c.contest_key desc
+        ), students as (
+            select distinct on (user_id) * from accounts
+             order by user_id, current_rating desc, account_id
+        )
+        select user_id as "userId", display_name as "displayName", real_name as "realName",
+               class_name as "className", school_name as "schoolName", current_rating as "currentRating",
+               rating_change as "ratingChange", max_rating as "maxRating", rated_contests as "ratedContests",
+               rank() over (order by current_rating desc) as rank, count(*) over () as "participantCount"
+          from students order by current_rating desc, user_id limit #{limit}
+        </script>
+        """)
+    List<Map<String, Object>> ratingRows(@Param("schoolId") Long schoolId, @Param("scope") String scope,
+        @Param("platform") String platform, @Param("limit") int limit);
+
     /** 年级筛选的选项：本校参与排行的同学有哪些年级（资格同上，不看平台、指标） */
     @Select("""
         select distinct enrollment_year from school_board_account

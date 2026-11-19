@@ -34,7 +34,7 @@ try {
   await click(page,'/ranking');await busy(page);await waitHeld(held,'module')
   assert.equal(new URL(page.url()).pathname,'/announcements')
   assert.ok(await page.$('nav a.is-active[href="/ranking"]'))
-  if(width<768) assert.equal(await page.$eval('.mobile-topbar',e=>e.innerText),'刷题排行')
+  if(width<768) assert.equal(await page.$eval('.mobile-topbar',e=>e.innerText),'排行榜')
   if(process.env.ALGOHUB_SCREENSHOTS) await page.screenshot({path:process.env.ALGOHUB_SCREENSHOTS+`/navigation-${width}.png`,fullPage:true})
   await held.module.continue();await page.waitForFunction(()=>location.pathname==='/ranking');await waitHeld(held,'api')
   assert.equal(await page.$('[data-test="navigation-loading"]'),null)

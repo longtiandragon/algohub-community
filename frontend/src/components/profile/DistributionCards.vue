@@ -36,6 +36,11 @@ const ATCODER_BANDS = [
 /** 洛谷现行九档（不含「暂无评定」），与官网主页「难易度统计」同序 */
 const LUOGU_ORDER = ['入门', '普及−', '普及', '普及+/提高−', '提高', '提高+/省选−', '省选/NOI−', 'NOI/NOI+/CTS']
 type DifficultyBar = { label: string; solved: number; order: number; color?: string; unrated?: boolean }
+const nowcoderStep = ref<100 | 200>(200)
+const stepOptions = [{ label: '100 分一档', value: 100 as const }, { label: '200 分一档', value: 200 as const }]
+function unrated(platform: string, label: string) {
+  return UNRATED.has(label) || (platform === 'NOWCODER' && ['-1', '未评分', ''].includes(label.trim()))
+}
 function lastNumber(label: string) {
   const all = label.match(/-?\d+/g)
   return all ? Number(all[all.length - 1]) : null
@@ -49,12 +54,15 @@ function barsOf(platform: string): DifficultyBar[] {
   }
   for (const r of props.difficulty) {
     if (r.platform !== platform) continue
-    if (UNRATED.has(r.difficulty)) {
+    if (unrated(r.platform, r.difficulty)) {
       add({ label: '未评级', solved: r.solved, order: Number.MAX_SAFE_INTEGER, unrated: true })
       continue
     }
     const n = lastNumber(r.difficulty)
-    if (platform === 'ATCODER' && n != null) {
+    if (platform === 'NOWCODER' && /^\d+$/.test(r.difficulty.trim()) && n != null) {
+      const start = Math.floor(n / nowcoderStep.value) * nowcoderStep.value
+      add({ label: `${start}–${start + nowcoderStep.value - 1}`, solved: r.solved, order: start })
+    } else if (platform === 'ATCODER' && n != null) {
       const i = ATCODER_BANDS.findIndex((band) => n < band.below)
       add({ label: ATCODER_BANDS[i].label, solved: r.solved, order: i, color: ATCODER_BANDS[i].color })
     } else if (n != null && /^(CF|Tracker)\s/.test(r.difficulty)) {
@@ -71,7 +79,7 @@ function barsOf(platform: string): DifficultyBar[] {
 const platforms = computed(() => {
   const rated = new Map<string, number>()
   for (const r of props.difficulty) {
-    if (!UNRATED.has(r.difficulty)) rated.set(r.platform, (rated.get(r.platform) ?? 0) + r.solved)
+    if (!unrated(r.platform, r.difficulty)) rated.set(r.platform, (rated.get(r.platform) ?? 0) + r.solved)
   }
   return [...rated.entries()].sort((a, b) => b[1] - a[1]).map(([platform]) => platform)
 })
@@ -168,6 +176,7 @@ const tagOption = computed<EChartsOption>(() => {
       <Skeleton v-if="loading && !platforms.length" class="h-[340px]" />
       <template v-else-if="platforms.length">
         <span class="text-[12.5px] text-muted" data-test="difficulty-count">{{ platformName(platform) }} 有评级的通过题 <span class="num">{{ ratedCount }}</span> 道</span>
+        <SegmentedControl v-if="platform === 'NOWCODER'" v-model="nowcoderStep" :options="stepOptions" label="牛客题目分值区间" class="small self-start" />
         <EChart :option="difficultyOption" height="tall" />
       </template>
       <EmptyState

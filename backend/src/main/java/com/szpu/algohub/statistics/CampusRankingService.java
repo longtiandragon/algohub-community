@@ -29,6 +29,19 @@ public class CampusRankingService {
     }
 
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
+    public Map<String, Object> ratingRanking(Long userId, String scope, String platform, int limit) {
+        if (!Set.of("SCHOOL", "GLOBAL").contains(scope)
+                || !Set.of("CODEFORCES", "ATCODER", "NOWCODER", "LEETCODE_CN", "LUOGU").contains(platform)
+                || limit < 1 || limit > 200) {
+            throw ApiException.validation("Rating 榜筛选参数无效");
+        }
+        Long schoolId = "SCHOOL".equals(scope) ? schools.approvedSchoolId(userId) : null;
+        var rows = mapper.ratingRows(schoolId, scope, platform, limit);
+        return Map.of("scope", scope, "platform", platform, "rows", rows,
+                "participantCount", rows.isEmpty() ? 0L : number(rows.getFirst(), "participantCount"));
+    }
+
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public Map<String, Object> ranking(Long userId, String type, String metric, String platform,
             Integer year, String className, int limit) {
         return ranking(userId, "SCHOOL", type, metric, platform, year, className, limit);

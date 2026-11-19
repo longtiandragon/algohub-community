@@ -22,6 +22,11 @@ class LuoguPublicLiveTest {
         assertThat(result.solvedTotal()).isNotNull().isNotNegative();
         assertThat(result.solvedProblems()).hasSize(result.solvedTotal());
         assertThat(result.solvedProblems()).extracting(problem -> problem.problemKey()).doesNotHaveDuplicates();
+        assertThat(result.ratedContests()).isNotNull();
+        assertThat(result.ratedContests()).allMatch(c -> c.rated() && c.newRating() != null && c.finishedAt() != null);
+        result.ratedContests().stream().max(java.util.Comparator.comparing(c -> c.finishedAt()))
+                .ifPresent(latest -> System.out.printf("LIVE_LUOGU_ELO uid=%s rated=%d current=%d%n",
+                        uid, result.ratedContests().size(), latest.newRating()));
         System.out.printf("LIVE_PUBLIC_LUOGU uid=%s solved=%d unique=%d activityDays=%d checkedAt=%s cookie=NONE%n",
                 uid, result.solvedTotal(), result.solvedProblems().size(), result.dailyActivity().size(), Instant.now());
     }
