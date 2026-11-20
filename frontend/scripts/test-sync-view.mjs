@@ -11,6 +11,16 @@ const deferred = () => {
   return { promise, resolve, reject }
 }
 const settle = () => new Promise(resolve => setImmediate(resolve))
+const profileModule = ts.transpileModule(readFileSync(new URL('../src/utils/platformProfile.ts', import.meta.url), 'utf8'), {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 }
+})
+const profiles = {}
+vm.runInNewContext(profileModule.outputText, { exports: profiles })
+const destinations = {
+  Luogu: ['LUOGU', 'https://www.luogu.com.cn/user/102'],
+  Qoj: ['QOJ', 'https://qoj.ac/user/profile/example-2'],
+  LeetCode: ['LEETCODE_CN', 'https://leetcode.cn/u/example-2/']
+}
 for (const platform of ['Luogu', 'Qoj', 'LeetCode']) {
   const view = `${platform}BrowserSyncView`
   const { descriptor } = parse(readFileSync(new URL(`../src/views/${view}.vue`, import.meta.url), 'utf8'))
@@ -21,6 +31,7 @@ for (const platform of ['Luogu', 'Qoj', 'LeetCode']) {
   vm.runInNewContext(outputText, { exports, require(name) {
     if (name === 'vue') return { ...vue, onMounted: fn => mounted.push(fn), onBeforeUnmount: fn => cleanup.push(fn) }
     if (name === 'vue-router') return { useRoute: () => ({ query: { account: '2' } }) }
+    if (name === '@/utils/platformProfile') return profiles
     if (name === '@/api/client') return {
       get: url => queue(gets, url), post: (url, body) => queue(posts, url, body),
       del: url => queue(deletes, url), notifyError: error => errors.push(error),
@@ -29,11 +40,13 @@ for (const platform of ['Luogu', 'Qoj', 'LeetCode']) {
   } })
   const scope = vue.effectScope()
   const page = scope.run(() => exports.default.setup({}, { expose() {} }))
-  if (platform === 'LeetCode') {
+  {
+    const [platformId, url] = destinations[platform]
     const loading = mounted[0]()
-    gets.shift().resolve([1, 2].map(id => ({ id, platform: 'LEETCODE_CN', ownershipStatus: 'VERIFIED' })))
+    gets.shift().resolve([1, 2].map(id => ({ id, platform: platformId, handle: `example-${id}`, platformUid: String(100 + id), ownershipStatus: 'VERIFIED' })))
     await loading
     assert.equal(page.selected.value, 2, 'the setup link should select the account from the card')
+    assert.equal(page.platformUrl.value, url, 'the selected account should open its external profile')
     gets.shift().resolve({ enabled: false })
     await settle()
   }

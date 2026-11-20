@@ -36,6 +36,7 @@ interface ProfileData {
   snapshotOverview: {
     platform: string
     handle: string
+    platformUid?: string | null
     syncStatus: string
     lastSuccessAt: string | null
     authMode: string
@@ -185,7 +186,7 @@ onBeforeUnmount(() => {
 })
 
 /** 已绑定的平台（顶部胶囊、每日记录的平台筛选）、只有总数的平台 */
-const handles = computed(() => (profile.value?.snapshotOverview ?? []).map((s) => ({ platform: s.platform, handle: s.handle })))
+const handles = computed(() => profile.value?.snapshotOverview ?? [])
 const boundPlatforms = computed(() => [...new Set((profile.value?.snapshotOverview ?? []).map((s) => s.platform))])
 const detailPlatformCount = computed(() => profile.value?.platformSolved.length ?? 0)
 /** 牛客账号：「做题记录」里列出它在 Tracker 通过的题 */

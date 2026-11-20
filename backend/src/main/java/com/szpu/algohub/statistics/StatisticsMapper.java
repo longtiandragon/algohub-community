@@ -70,7 +70,7 @@ public interface StatisticsMapper {
 
     /** 只有总量的平台：展示最近一次快照及其时间，不与逐条记录混淆。 */
     @Select("""
-            select a.platform, a.handle, a.sync_status as "syncStatus", a.last_success_at as "lastSuccessAt",
+            select a.platform, a.handle, a.platform_uid as "platformUid", a.sync_status as "syncStatus", a.last_success_at as "lastSuccessAt",
                    a.auth_mode as "authMode", a.ownership_status as "ownershipStatus",
                    t.solved_total as "solvedTotal", t.submission_total as "submissionTotal",
                    t.captured_at as "capturedAt", t.raw_extra as "rawExtra"

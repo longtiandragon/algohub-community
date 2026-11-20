@@ -157,6 +157,7 @@ class StatsVisibilityTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.snapshotOverview.length()").value(1))
                 .andExpect(jsonPath("$.data.snapshotOverview[0].platform").value("CODEFORCES"))
+                .andExpect(jsonPath("$.data.snapshotOverview[0].platformUid").doesNotExist())
                 .andExpect(jsonPath("$.data.snapshotOverview[0].handle").doesNotExist())
                 .andExpect(jsonPath("$.data.snapshotOverview[0].authMode").doesNotExist())
                 .andExpect(jsonPath("$.data.snapshotOverview[0].ownershipStatus").doesNotExist())
@@ -171,6 +172,7 @@ class StatsVisibilityTest {
                 .andExpect(jsonPath("$.data.accountsHidden").value(true));
         // 本人不受影响
         mockMvc.perform(get("/api/stats/profile").header("Authorization", "Bearer " + ownerToken))
+                .andExpect(jsonPath("$.data.snapshotOverview[0].platformUid").exists())
                 .andExpect(jsonPath("$.data.snapshotOverview[0].handle").exists());
     }
 

@@ -26,7 +26,7 @@ interface Stats {
   totalSolvedAcrossPlatforms: number; totalPassed: number
   platformSolved: { platform: string; solved: number }[]
   platformTotals: { platform: string; solved: number }[]
-  snapshotOverview: { platform: string; handle?: string; rawExtra?: string | null }[]
+  snapshotOverview: { platform: string; handle?: string; platformUid?: string; rawExtra?: string | null }[]
   difficultyDistribution: { platform: string; difficulty: string; source: string; solved: number }[]
   tagDistribution: { category: string; solved: number }[]
   tagCoverage: { withTags: number; total: number }
@@ -58,7 +58,7 @@ const tab = computed<Tab>(() => tabs.find(t => t.key === route.query.tab)?.key ?
 const tabLink = (key: Tab) => ({ query: { ...route.query, tab: key === 'overview' ? undefined : key } })
 const tabLinks = computed(() => tabs.map(t => ({ ...t, to: tabLink(t.key) })))
 const platforms = computed(() => [...new Set(stats.value?.snapshotOverview.map(a => a.platform) ?? [])])
-const profileAccounts = computed(() => stats.value?.snapshotOverview.map(a => ({ platform: a.platform, handle: a.handle })) ?? [])
+const profileAccounts = computed(() => stats.value?.snapshotOverview ?? [])
 const trackerAccount = computed(() => stats.value?.snapshotOverview.find(a => a.platform === 'NOWCODER'))
 const membership = computed(() => [person.value?.enrollmentYear ? `${person.value.enrollmentYear} 级` : '', person.value?.className, person.value?.schoolName].filter(Boolean).join(' · ') || '还没有加入学校')
 async function showDay(date: string) {
@@ -121,7 +121,7 @@ onBeforeUnmount(() => observer?.disconnect())
     <p v-if="loading" role="status" class="text-muted">正在加载档案…</p>
     <div v-else-if="error" role="status" class="rounded-card bg-surface p-6"><p>{{ error }}</p><el-button @click="load">重试</el-button></div>
     <template v-else-if="person && stats">
-      <ProfileCard :person="{ displayName: person.displayName, avatarUrl: person.avatarUrl, membership, bio: person.bio }"
+      <ProfileCard :person="{ id: person.id, displayName: person.displayName, avatarUrl: person.avatarUrl, membership, bio: person.bio }"
         :accounts="profileAccounts" :solved="stats.totalSolvedAcrossPlatforms" :total-passed="stats.totalPassed"
         :longest-streak="streak?.longestStreak ?? null" read-only class="mb-4">
         <template #actions><FriendActions :key="userId" :user-id="userId" /></template>

@@ -98,6 +98,7 @@ public class StatisticsService {
                     copy.remove("ownershipStatus");
                     if (!showAccounts) {
                         copy.remove("handle");
+                        copy.remove("platformUid");
                         copy.remove("rawExtra");
                     }
                     return (Map<String, Object>) copy;

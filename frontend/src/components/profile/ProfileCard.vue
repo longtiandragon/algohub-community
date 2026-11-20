@@ -9,6 +9,7 @@ import UserAvatar from '@/components/ui/UserAvatar.vue'
 import { useAuthStore } from '@/stores/auth'
 import { downloadHistoryCsv } from '@/utils/historyExport'
 import { platformName } from '@/utils/platformBrand'
+import { platformProfileUrl, type PlatformIdentity } from '@/utils/platformProfile'
 import { campusDate } from '@/utils/statistics'
 
 /**
@@ -16,11 +17,11 @@ import { campusDate } from '@/utils/statistics'
  * 手机上头部不包卡片，两个数字并排成两张小卡片，「N 月报告」放到顶栏。
  */
 const props = defineProps<{
-  accounts: { platform: string; handle?: string }[]
+  accounts: PlatformIdentity[]
   /** 已收录通过（有题目明细的平台，同一平台同一题只算一次）；没有明细时为空 */
   solved: number | null
   totalPassed?: number | null
-  person?: { displayName: string; avatarUrl: string | null; membership: string; bio?: string | null }
+  person?: { id: number; displayName: string; avatarUrl: string | null; membership: string; bio?: string | null }
   readOnly?: boolean
   /** 最长连续（按北京时间自然日，只算能确认通过时间的记录） */
   longestStreak: number | null
@@ -34,10 +35,11 @@ const emit = defineEmits<{
 }>()
 
 const auth = useAuthStore()
-const showHandles = computed(() => !props.readOnly || auth.isAdmin)
+const showHandles = computed(() => !props.readOnly || auth.isAdmin || (props.person && props.person.id === auth.me?.id))
 // 同学视角只按平台去重；不把账号名放进文字、提示或链接。
-const visibleAccounts = computed(() => showHandles.value ? props.accounts
-  : [...new Set(props.accounts.map(account => account.platform))].map(platform => ({ platform, handle: undefined })))
+const visibleAccounts = computed(() => showHandles.value
+  ? props.accounts.map(account => ({ ...account, url: platformProfileUrl(account) }))
+  : [...new Set(props.accounts.map(account => account.platform))].map(platform => ({ platform, handle: undefined, url: undefined })))
 const name = computed(() => props.person?.displayName || auth.me?.displayName || auth.me?.username || '')
 const membership = computed(() => {
   if (props.person) return props.person.membership
@@ -99,10 +101,13 @@ const kpis = computed(() => [
         <span class="text-[13px] text-muted md:text-sm">{{ membership }}</span>
         <span v-if="person?.bio" class="text-[13px] text-body">{{ person.bio }}</span>
         <ul v-if="visibleAccounts.length" class="m-0 flex list-none flex-wrap gap-1.5 p-0 md:(mt-0.5 gap-2)" :aria-label="showHandles ? '已绑定的平台账号' : '已绑定的 OJ 平台'">
-          <li v-for="account in visibleAccounts" :key="`${account.platform}-${account.handle ?? ''}`" class="handle-chip" :title="showHandles && account.handle ? `${platformName(account.platform)} · ${account.handle}` : platformName(account.platform)">
-            <PlatformLogo :platform="account.platform" :size="20" />
-            <span v-if="showHandles && account.handle" class="mono handle">{{ account.handle }}</span>
-            <span v-else class="platform-label">{{ platformName(account.platform) }}</span>
+          <li v-for="account in visibleAccounts" :key="`${account.platform}-${account.url ?? account.handle ?? ''}`" class="max-w-full">
+            <component :is="account.url ? 'a' : 'span'" :href="account.url" :target="account.url ? '_blank' : undefined" :rel="account.url ? 'noopener noreferrer' : undefined" class="handle-chip">
+              <PlatformLogo :platform="account.platform" :size="20" class="shrink-0" />
+              <span class="platform-label">{{ platformName(account.platform) }}</span>
+              <span v-if="account.handle" class="mono handle">{{ account.handle }}</span>
+              <span v-if="account.url" class="i-lucide-external-link shrink-0 text-xs" aria-hidden="true" />
+            </component>
           </li>
         </ul>
       </div>
@@ -178,10 +183,12 @@ const kpis = computed(() => [
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  max-width: 100%;
+  min-height: 28px;
 }
 
 .handle {
-  display: none;
+  overflow-wrap: anywhere;
   font-size: 12px;
   color: var(--text);
 }
@@ -228,9 +235,7 @@ const kpis = computed(() => [
     border-radius: 999px;
   }
 
-  .handle {
-    display: inline;
-  }
+  a.handle-chip:hover { text-decoration: underline; }
 
   /* 电脑：两个数字靠左排，按内容宽，中间一条竖线 */
   .kpis {

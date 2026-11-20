@@ -6,6 +6,7 @@ import PlatformLogo from '@/components/PlatformLogo.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
 import { isSyncActive } from '@/stores/accounts'
 import { platformName } from '@/utils/platformBrand'
+import { platformProfileUrl } from '@/utils/platformProfile'
 import { TONE_DOT, TONE_INK, accountFacts, accountNote, accountProblem, accountStatus, bindingKind, needsLeetCodeLogin } from './accountState'
 
 /**
@@ -33,6 +34,7 @@ const facts = computed(() => accountFacts(props.account))
 const factsLine = computed(() => facts.value.map((fact) => `${fact.label} ${fact.value}`).join(' · '))
 const note = computed(() => accountNote(props.account))
 const kind = computed(() => bindingKind(props.account))
+const profileUrl = computed(() => platformProfileUrl(props.account))
 const identity = computed(() => {
   const { handle, platformUid } = props.account
   return platformUid && platformUid !== handle ? `${handle} · UID ${platformUid}` : handle
@@ -57,7 +59,10 @@ function onCommand(command: string) {
     <div class="flex items-center gap-3">
       <PlatformLogo :platform="account.platform" :size="40" class="shrink-0" />
       <div class="min-w-0 flex flex-1 flex-col gap-0.5">
-        <span class="truncate text-base text-ink font-semibold leading-6">{{ platformName(account.platform) }}</span>
+        <a v-if="profileUrl" :href="profileUrl" target="_blank" rel="noopener noreferrer" class="profile-link text-base text-ink font-semibold leading-6" :aria-label="`打开 ${platformName(account.platform)} 账号 ${identity} 的主页`">
+          {{ platformName(account.platform) }} <span class="i-lucide-external-link inline-block text-xs text-muted" aria-hidden="true" />
+        </a>
+        <span v-else class="truncate text-base text-ink font-semibold leading-6">{{ platformName(account.platform) }}</span>
         <span class="truncate text-[12.5px] text-muted leading-[18px]" :title="identity">
           <span class="mono">{{ identity }}</span><template v-if="account.hasCredential"> · 已保存登录态</template>
         </span>
@@ -91,14 +96,14 @@ function onCommand(command: string) {
       <strong :class="account.historyComplete ? 'text-ink' : ''">{{ account.timedProblems ? '已收录带时间的通过记录' : '浏览器同步可补通过时间' }}</strong>
       <span>公开题单和额外评测题合并计入累计；有通过时间的题参与近期排行和动态。同一道题只计一次，不需要洛谷密码或 Cookie。</span>
       <span class="flex flex-wrap gap-x-3 gap-y-1">
-        <RouterLink to="/luogu-sync" class="text-brand-600 font-semibold">{{ account.historyComplete ? '自动同步设置' : '去同步' }} →</RouterLink>
+        <RouterLink :to="{ path: '/luogu-sync', query: { account: account.id } }" class="text-brand-600 font-semibold">{{ account.historyComplete ? '自动同步设置' : '去同步' }} →</RouterLink>
         <RouterLink :to="{ path: '/profile', query: { tab: 'records', platform: 'LUOGU' } }" class="text-brand-600">做题记录 →</RouterLink>
       </span>
     </div>
 
     <div v-if="account.platform === 'QOJ' && !account.ownershipNote && account.ownershipStatus !== 'MISMATCH'" class="rounded-control bg-info-soft px-3 py-2.5 text-[12.5px] leading-relaxed">
       完成 Motto 验证后，通过插件同步本人可见的 AC 记录；服务器更新主页累计通过数，无需提供个人 Cookie。
-      <RouterLink to="/qoj-sync" class="text-brand-600 font-semibold">浏览器同步与自动同步设置 →</RouterLink>
+      <RouterLink v-if="account.ownershipStatus === 'VERIFIED'" :to="{ path: '/qoj-sync', query: { account: account.id } }" class="text-brand-600 font-semibold">浏览器同步与自动同步设置 →</RouterLink>
     </div>
     <div v-if="account.platform === 'LEETCODE_CN' && account.ownershipStatus === 'VERIFIED'" class="rounded-control bg-info-soft px-3 py-2.5 text-[12.5px] leading-relaxed">
       {{ loginRequired ? '首次使用插件时，需要先安装脚本并生成连接码。' : '用浏览器插件导入历史记录后，热力图会显示每道题第一次通过的日期。' }}
@@ -116,7 +121,7 @@ function onCommand(command: string) {
     <p v-if="note" class="m-0 text-[12.5px] text-muted leading-relaxed">{{ note }}</p>
 
     <div class="flex items-center gap-2 max-md:(border-t border-t-solid border-line-soft pt-2.5)">
-      <RouterLink v-if="account.platform === 'QOJ'" to="/qoj-sync" class="text-brand-600 font-semibold">插件同步 →</RouterLink>
+      <RouterLink v-if="account.platform === 'QOJ' && account.ownershipStatus === 'VERIFIED'" :to="{ path: '/qoj-sync', query: { account: account.id } }" class="text-brand-600 font-semibold">插件同步 →</RouterLink>
       <el-button v-if="loginRequired" tag="a" href="https://leetcode.cn/" target="_blank" rel="noopener noreferrer">去力扣登录</el-button>
       <el-button v-else :disabled="active" @click="emit('sync')">
         <span class="i-lucide-refresh-cw mr-1.5 text-sm" aria-hidden="true" />{{ active ? '同步中' : account.platform === 'LUOGU' ? '更新公开题单' : '同步' }}
@@ -148,6 +153,8 @@ function onCommand(command: string) {
 
 <style scoped>
 .account-card {
+  position: relative;
+  isolation: isolate;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -158,6 +165,20 @@ function onCommand(command: string) {
   background: var(--bg-elevated);
   /* 从「需要你处理」点「查看账号」滚过来时，不贴着顶栏 */
   scroll-margin-top: 72px;
+}
+
+.profile-link::after {
+  position: absolute;
+  inset: 0;
+  content: '';
+  border-radius: var(--radius);
+}
+
+.profile-link:focus-visible::after { outline: 2px solid var(--brand-500); }
+.profile-link:hover { text-decoration: underline; }
+.account-card :deep(:is(a:not(.profile-link), button, .el-dropdown, [data-test="account-detail"])) {
+  position: relative;
+  z-index: 1;
 }
 
 .account-card.tone-warn {

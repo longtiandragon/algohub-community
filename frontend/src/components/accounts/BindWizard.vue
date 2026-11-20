@@ -40,6 +40,8 @@ const credential = ref('')
 const lookup = ref<IdentityLookup | null>(null)
 const request = ref<BindingRequest | null>(null)
 const outcome = ref<Outcome | null>(null)
+const boundAccountId = ref<number | null>(null)
+const pluginRoutes: Record<string, string> = { LUOGU: '/luogu-sync', QOJ: '/qoj-sync', LEETCODE_CN: '/leetcode-sync' }
 const busy = ref(false)
 const proofError = ref('')
 const showNotes = ref(false)
@@ -287,6 +289,7 @@ async function verify() {
     const result = await post<{ outcome: 'BOUND' | 'APPEALED'; accountId: number | null; appealId: number | null }>(
       `/binding-requests/${request.value.id}/verify`)
     outcome.value = result.outcome
+    boundAccountId.value = result.accountId
     step.value = 'done'
     await props.reload()
   } catch (e) {
@@ -439,6 +442,7 @@ defineExpose({ open, resume })
 
       <!-- 填账号 -->
       <template v-else-if="step === 'handle'">
+        <a v-if="capability?.homeUrl" :href="capability.homeUrl" target="_blank" rel="noopener noreferrer" class="w-fit text-brand-600 font-semibold">打开{{ name }}查找账号 ↗</a>
         <WizardMatiji v-if="guide.nickname" ref="matiji" :busy="busy" @pick="onPickMatiji" />
         <div v-else class="flex flex-col gap-3.5">
           <label class="flex flex-col gap-1.5">
@@ -495,7 +499,8 @@ defineExpose({ open, resume })
         <h3 class="m-0 text-lg text-ink font-bold">{{ done.title }}</h3>
         <p class="m-0 text-sm text-body">{{ name }} · <span class="mono">{{ doneHandle }}</span></p>
         <p class="m-0 max-w-[460px] text-[13.5px] text-muted leading-relaxed">{{ done.text }}</p>
-        <RouterLink v-if="platform === 'QOJ'" to="/qoj-sync" class="text-brand-600 font-semibold" @click="visible = false">连接 QOJ 插件 →</RouterLink>
+        <RouterLink v-if="outcome === 'BOUND' && pluginRoutes[platform]" :to="{ path: pluginRoutes[platform], query: { account: boundAccountId } }" class="text-brand-600 font-semibold" @click="visible = false">连接{{ name }}同步插件 →</RouterLink>
+        <RouterLink v-else-if="platform === 'QOJ' && flow === 'browser'" to="/qoj-sync" class="text-brand-600 font-semibold" @click="visible = false">连接 QOJ 插件 →</RouterLink>
       </div>
     </div>
 
