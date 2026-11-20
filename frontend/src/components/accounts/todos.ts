@@ -1,13 +1,13 @@
 import type { BindingRequest, OwnershipAppeal, PlatformAccount } from '@/api/types'
 import { needsAttention } from '@/stores/accounts'
 import { platformName } from '@/utils/platformBrand'
-import { accountProblem } from './accountState'
+import { accountProblem, needsLeetCodeLogin } from './accountState'
 
 /**
  * 「需要你处理」里的一件事。四类：账号出了问题（归属不一致、登录态失效、同步失败或暂停）、还没验证归属、
  * 待验证的绑定申请、审核中的归属申诉。每件事一个主要动作，申请和申诉另有「取消申请」「撤回」。
  */
-export type TodoKind = 'mismatch' | 'credential' | 'failed' | 'paused' | 'verify' | 'request' | 'appeal'
+export type TodoKind = 'mismatch' | 'credential' | 'leetcodeLogin' | 'failed' | 'paused' | 'verify' | 'request' | 'appeal'
 
 export interface Todo {
   key: string
@@ -45,6 +45,8 @@ export function buildTodos(
     const kept = account.lastSuccessAt ? '；已保留上次同步到的数据' : ''
     if (account.ownershipStatus === 'MISMATCH') {
       problems.push({ ...base, key: `mismatch-${account.id}`, kind: 'mismatch', title: `${name} 账号归属不一致`, sub: accountProblem(account) ?? '' })
+    } else if (needsLeetCodeLogin(account)) {
+      problems.push({ ...base, key: `leetcode-login-${account.id}`, kind: 'leetcodeLogin', title: `${name} 通过记录需要登录后同步`, sub: accountProblem(account) ?? '' })
     } else if (account.credentialStatus === 'INVALID') {
       problems.push({ ...base, key: `credential-${account.id}`, kind: 'credential', title: `${name} 登录态已失效`, sub: `更新登录态后才能继续同步${kept}` })
     } else if (account.syncStatus === 'FAILED') {

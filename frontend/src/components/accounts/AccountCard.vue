@@ -6,7 +6,7 @@ import PlatformLogo from '@/components/PlatformLogo.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
 import { isSyncActive } from '@/stores/accounts'
 import { platformName } from '@/utils/platformBrand'
-import { TONE_DOT, TONE_INK, accountFacts, accountNote, accountProblem, accountStatus, bindingKind } from './accountState'
+import { TONE_DOT, TONE_INK, accountFacts, accountNote, accountProblem, accountStatus, bindingKind, needsLeetCodeLogin } from './accountState'
 
 /**
  * 「我的账号」里的一张卡片：平台、账号（等宽字）、绑定方式；状态行；出错时一段原因；三格数字（手机上是一行）；
@@ -38,11 +38,13 @@ const identity = computed(() => {
   return platformUid && platformUid !== handle ? `${handle} · UID ${platformUid}` : handle
 })
 const active = computed(() => isSyncActive(props.account))
+const loginRequired = computed(() => needsLeetCodeLogin(props.account))
 /** 经申诉转给别人的旧账号带着说明，不再给「验证归属」 */
 const canVerify = computed(() => props.account.bindingKind === 'CLAIMABLE' && !props.account.ownershipNote)
 
 function onCommand(command: string) {
-  if (command === 'verify') emit('verify')
+  if (command === 'sync') emit('sync')
+  else if (command === 'verify') emit('verify')
   else if (command === 'detail') emit('toggleDetail')
   else if (command === 'credential') emit('credential')
   else if (command === 'deleteCredential') emit('deleteCredential')
@@ -99,8 +101,8 @@ function onCommand(command: string) {
       <RouterLink to="/qoj-sync" class="text-brand-600 font-semibold">浏览器同步与自动同步设置 →</RouterLink>
     </div>
     <div v-if="account.platform === 'LEETCODE_CN' && account.ownershipStatus === 'VERIFIED'" class="rounded-control bg-info-soft px-3 py-2.5 text-[12.5px] leading-relaxed">
-      通过插件补齐历史 AC 明细，热力图每题只计首次 AC；普通同步更新力扣过题总数。
-      <RouterLink to="/leetcode-sync" class="text-brand-600 font-semibold">力扣浏览器同步 →</RouterLink>
+      {{ loginRequired ? '首次使用插件时，需要先安装脚本并生成连接码。' : '用浏览器插件导入历史记录后，热力图会显示每道题第一次通过的日期。' }}
+      <RouterLink :to="{ path: '/leetcode-sync', query: { account: account.id } }" class="text-brand-600 font-semibold">{{ loginRequired ? '设置浏览器同步' : '用浏览器同步历史记录' }} →</RouterLink>
     </div>
     <!-- 电脑、平板：已通过（和 Rating）两格；手机：一行 -->
     <dl class="m-0 hidden grid-cols-2 gap-2 border-y border-y-solid border-line-soft py-3 md:grid">
@@ -115,7 +117,8 @@ function onCommand(command: string) {
 
     <div class="flex items-center gap-2 max-md:(border-t border-t-solid border-line-soft pt-2.5)">
       <RouterLink v-if="account.platform === 'QOJ'" to="/qoj-sync" class="text-brand-600 font-semibold">插件同步 →</RouterLink>
-      <el-button :disabled="active" @click="emit('sync')">
+      <el-button v-if="loginRequired" tag="a" href="https://leetcode.cn/" target="_blank" rel="noopener noreferrer">去力扣登录</el-button>
+      <el-button v-else :disabled="active" @click="emit('sync')">
         <span class="i-lucide-refresh-cw mr-1.5 text-sm" aria-hidden="true" />{{ active ? '同步中' : account.platform === 'LUOGU' ? '更新公开题单' : '同步' }}
       </el-button>
       <RouterLink to="/profile" class="px-1.5 text-[13.5px] leading-8">查看数据</RouterLink>
@@ -126,6 +129,7 @@ function onCommand(command: string) {
         </button>
         <template #dropdown>
           <el-dropdown-menu>
+            <el-dropdown-item v-if="loginRequired" command="sync">更新公开数据</el-dropdown-item>
             <el-dropdown-item v-if="canVerify" command="verify">验证归属</el-dropdown-item>
             <el-dropdown-item command="detail">{{ detailOpen ? '收起同步明细' : '查看同步明细' }}</el-dropdown-item>
             <el-dropdown-item v-if="!['LUOGU', 'QOJ', 'LEETCODE_CN'].includes(account.platform)" command="credential">{{ account.hasCredential ? '更新登录态' : '设置登录态' }}</el-dropdown-item>

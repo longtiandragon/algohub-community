@@ -28,6 +28,7 @@ const emit = defineEmits<{
 const ACTION: Record<Todo['kind'], string> = {
   mismatch: '查看账号',
   credential: '更新登录态',
+  leetcodeLogin: '去力扣登录',
   failed: '立即重试',
   paused: '立即重试',
   verify: '去验证',
@@ -113,7 +114,8 @@ async function withdrawAppeal(row: OwnershipAppeal) {
         <button v-if="secondaryLabel(item)" type="button" class="todo-secondary desktop-only" @click="runSecondary(item)">
           {{ secondaryLabel(item) }}
         </button>
-        <el-button :type="item.kind === 'verify' ? 'primary' : undefined" class="shrink-0" @click="run(item)">{{ actionLabel(item) }}</el-button>
+        <el-button v-if="item.kind === 'leetcodeLogin'" tag="a" href="https://leetcode.cn/" target="_blank" rel="noopener noreferrer" class="shrink-0">{{ actionLabel(item) }}</el-button>
+        <el-button v-else :type="item.kind === 'verify' ? 'primary' : undefined" class="shrink-0" @click="run(item)">{{ actionLabel(item) }}</el-button>
       </li>
     </ul>
   </section>

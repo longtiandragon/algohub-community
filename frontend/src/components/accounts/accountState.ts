@@ -33,9 +33,19 @@ function needsFirstCredential(account: PlatformAccount) {
   return !account.hasCredential && account.syncStatus === 'PAUSED' && account.lastErrorKind === 'CREDENTIAL_INVALID'
 }
 
+export function needsLeetCodeLogin(account: PlatformAccount) {
+  if (account.platform !== 'LEETCODE_CN' || account.ownershipStatus !== 'VERIFIED' || isSyncActive(account)) return false
+  if (account.credentialStatus === 'INVALID') return true
+  if (!['FAILED', 'PARTIAL', 'PAUSED', 'RETRY'].includes(account.syncStatus)) return false
+  return account.lastErrorKind === 'CREDENTIAL_INVALID' || (account.dataItems ?? []).some(item =>
+    item.item === 'HISTORY' && item.status !== 'SUCCESS' &&
+    (item.status === 'NEEDS_CREDENTIAL' || item.errorKind === 'CREDENTIAL_INVALID' || /\b(?:401|403)\b/.test(item.errorMsg ?? '')))
+}
+
 /** 状态行：「同步正常 · 12 分钟前」「同步失败 · 上次成功 3 小时前」 */
 export function accountStatus(account: PlatformAccount): { tone: AccountTone; text: string } {
   if (account.ownershipStatus === 'MISMATCH') return { tone: 'bad', text: '账号归属不一致 · 已停止同步' }
+  if (needsLeetCodeLogin(account)) return { tone: 'warn', text: `通过记录需要登录力扣后同步 · ${since(account)}` }
   if (account.authMode === 'BROWSER') return account.lastSuccessAt
     ? { tone: 'ok', text: `插件同步成功 · ${relativeTime(account.lastSuccessAt)}` }
     : { tone: 'idle', text: '等待连接浏览器插件' }
@@ -63,6 +73,11 @@ export function accountStatus(account: PlatformAccount): { tone: AccountTone; te
  */
 export function accountProblem(account: PlatformAccount): string | null {
   if (account.ownershipStatus === 'MISMATCH') return account.lastErrorMsg || '平台上这个账号的标识和绑定时的不一致，已停止同步。'
+  if (needsLeetCodeLogin(account)) {
+    const guidance = `请在浏览器里登录力扣账号 ${account.handle}，再用「AlgoHub 同步」插件导入通过记录。`
+    const otherErrors = (account.dataItems ?? []).filter(item => item.item !== 'HISTORY' && item.status !== 'SUCCESS' && item.errorMsg)
+    return [guidance, ...otherErrors.map(item => `${DATA_ITEM_LABEL[item.item]}：${item.errorMsg}`)].join(' ')
+  }
   if (account.authMode === 'BROWSER') return null
   if (account.credentialStatus === 'INVALID') return '保存的登录态已经失效，同步用不了；在「⋯」里更新登录态后继续同步。'
   if (needsFirstCredential(account)) return '这个平台的做题记录要登录才能看：在「⋯」→「设置登录态」里填好后开始同步。'

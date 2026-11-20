@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { del, get, post, notifyError } from '@/api/client'
 import type { PlatformAccount } from '@/api/types'
 import EmptyState from '@/components/ui/EmptyState.vue'
@@ -12,6 +13,7 @@ import SectionCard from '@/components/ui/SectionCard.vue'
  * 三步：装脚本 → 选账号、生成连接码（可顺带授权自动同步）→ 到力扣页面点「AlgoHub 同步」。
  */
 const accounts = ref<PlatformAccount[]>([])
+const route = useRoute()
 const loaded = ref(false)
 const selected = ref<number | null>(null)
 const ticket = ref('')
@@ -30,7 +32,8 @@ const current = computed(() => eligibleAccounts.value.find((account) => account.
 onMounted(async () => {
   try {
     accounts.value = await get<PlatformAccount[]>('/accounts')
-    selected.value = eligibleAccounts.value[0]?.id ?? null
+    const requested = eligibleAccounts.value.find(account => String(account.id) === route.query.account)
+    selected.value = requested?.id ?? eligibleAccounts.value[0]?.id ?? null
   } catch (e) {
     notifyError(e)
   } finally {
