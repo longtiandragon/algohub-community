@@ -16,10 +16,11 @@ for (const platform of ['Luogu', 'Qoj', 'LeetCode']) {
   const { descriptor } = parse(readFileSync(new URL(`../src/views/${view}.vue`, import.meta.url), 'utf8'))
   const { content } = compileScript(descriptor, { id: view })
   const { outputText } = ts.transpileModule(content, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } })
-  const exports = {}, cleanup = [], gets = [], posts = [], deletes = [], errors = []
+  const exports = {}, mounted = [], cleanup = [], gets = [], posts = [], deletes = [], errors = []
   const queue = (list, url, body) => { const task = deferred(); list.push({ ...task, url, body }); return task.promise }
   vm.runInNewContext(outputText, { exports, require(name) {
-    if (name === 'vue') return { ...vue, onMounted() {}, onBeforeUnmount: fn => cleanup.push(fn) }
+    if (name === 'vue') return { ...vue, onMounted: fn => mounted.push(fn), onBeforeUnmount: fn => cleanup.push(fn) }
+    if (name === 'vue-router') return { useRoute: () => ({ query: { account: '2' } }) }
     if (name === '@/api/client') return {
       get: url => queue(gets, url), post: (url, body) => queue(posts, url, body),
       del: url => queue(deletes, url), notifyError: error => errors.push(error),
@@ -28,6 +29,14 @@ for (const platform of ['Luogu', 'Qoj', 'LeetCode']) {
   } })
   const scope = vue.effectScope()
   const page = scope.run(() => exports.default.setup({}, { expose() {} }))
+  if (platform === 'LeetCode') {
+    const loading = mounted[0]()
+    gets.shift().resolve([1, 2].map(id => ({ id, platform: 'LEETCODE_CN', ownershipStatus: 'VERIFIED' })))
+    await loading
+    assert.equal(page.selected.value, 2, 'the setup link should select the account from the card')
+    gets.shift().resolve({ enabled: false })
+    await settle()
+  }
   page.selected.value = 1
   page.auto.value = true
   const oldBegin = page.begin()
