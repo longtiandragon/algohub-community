@@ -36,8 +36,7 @@ const ATCODER_BANDS = [
 /** 洛谷现行九档（不含「暂无评定」），与官网主页「难易度统计」同序 */
 const LUOGU_ORDER = ['入门', '普及−', '普及', '普及+/提高−', '提高', '提高+/省选−', '省选/NOI−', 'NOI/NOI+/CTS']
 type DifficultyBar = { label: string; solved: number; order: number; color?: string; unrated?: boolean }
-const nowcoderStep = ref<100 | 200>(200)
-const stepOptions = [{ label: '100 分一档', value: 100 as const }, { label: '200 分一档', value: 200 as const }]
+const NOWCODER_BAND_WIDTH = 200
 function unrated(platform: string, label: string) {
   return UNRATED.has(label) || (platform === 'NOWCODER' && ['-1', '未评分', ''].includes(label.trim()))
 }
@@ -60,15 +59,17 @@ function barsOf(platform: string): DifficultyBar[] {
     }
     const n = lastNumber(r.difficulty)
     if (platform === 'NOWCODER' && /^\d+$/.test(r.difficulty.trim()) && n != null) {
-      const start = Math.floor(n / nowcoderStep.value) * nowcoderStep.value
-      add({ label: `${start}–${start + nowcoderStep.value - 1}`, solved: r.solved, order: start })
+      const start = Math.floor(n / NOWCODER_BAND_WIDTH) * NOWCODER_BAND_WIDTH
+      add({ label: `${start}–${start + NOWCODER_BAND_WIDTH - 1}`, solved: r.solved, order: start })
     } else if (platform === 'ATCODER' && n != null) {
       const i = ATCODER_BANDS.findIndex((band) => n < band.below)
       add({ label: ATCODER_BANDS[i].label, solved: r.solved, order: i, color: ATCODER_BANDS[i].color })
     } else if (n != null && /^(CF|Tracker)\s/.test(r.difficulty)) {
       add({ label: `${r.difficulty.startsWith('Tracker') ? 'Tracker ' : ''}${n}`, solved: r.solved, order: n })
     } else {
-      const i = LUOGU_ORDER.indexOf(r.difficulty)
+      const i = platform === 'LEETCODE_CN'
+        ? ['easy', 'medium', 'hard'].indexOf(r.difficulty.toLowerCase())
+        : LUOGU_ORDER.indexOf(r.difficulty)
       add({ label: r.difficulty, solved: r.solved, order: i >= 0 ? i : 1e6 })
     }
   }
@@ -164,7 +165,7 @@ const tagOption = computed<EChartsOption>(() => {
         <h2 class="m-0 flex items-center gap-1 text-base text-ink font-semibold">
           难度分布
           <InfoTip title="难度分布怎么算">
-            按所选平台自己的难度统计，不跨平台换算；AtCoder 按 AtCoder Problems 的估计值归入颜色段。没有评级的题列在最后。只有提供逐题明细的平台才能统计难度。
+            牛客每 200 分一档，AtCoder Problems 估计难度按颜色分档，其他平台保留各自的难度标签。没有评级的题列在最后。只有提供逐题明细的平台才能统计难度。
           </InfoTip>
         </h2>
         <SegmentedControl v-if="platforms.length > 1 && platforms.length <= 4" v-model="platform" :options="platformOptions" label="按哪个平台的难度" class="small" />
@@ -176,7 +177,6 @@ const tagOption = computed<EChartsOption>(() => {
       <Skeleton v-if="loading && !platforms.length" class="h-[340px]" />
       <template v-else-if="platforms.length">
         <span class="text-[12.5px] text-muted" data-test="difficulty-count">{{ platformName(platform) }} 有评级的通过题 <span class="num">{{ ratedCount }}</span> 道</span>
-        <SegmentedControl v-if="platform === 'NOWCODER'" v-model="nowcoderStep" :options="stepOptions" label="牛客题目分值区间" class="small self-start" />
         <EChart :option="difficultyOption" height="tall" />
       </template>
       <EmptyState
