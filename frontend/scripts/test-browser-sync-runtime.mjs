@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import vm from 'node:vm'
 import assert from 'node:assert/strict'
+import { parseHTML } from 'linkedom'
 
 const runtime = readFileSync(new URL('./browser-sync-runtime.txt', import.meta.url), 'utf8')
 const baseTime = 1793300000000
@@ -16,6 +17,40 @@ function harness(extra = {}) {
     sleep: async ms => { sleeps.push(ms); now += ms }, ...extra })
   vm.runInContext(runtime, context)
   return { context, storage, sleeps, advance: ms => { now += ms } }
+}
+
+// On AlgoHub the installed script reports only its own version. On the OJ a
+// newer release stays visible between page loads without repeated requests.
+for (const platform of ['luogu', 'qoj', 'leetcode']) {
+  const script = readFileSync(new URL(`../public/userscripts/algohub-${platform}-sync.user.js`, import.meta.url), 'utf8')
+  const { document } = parseHTML('<html><body></body></html>')
+  const window = {}
+  const GM_info = { script: { version: '1.9.0' } }
+  for (const hostname of ['algohub.top', 'www.algohub.top']) {
+    assert.ok(script.includes(`// @match        https://${hostname}/*`))
+    vm.runInNewContext(script, { document, window, location: { hostname }, GM_info })
+    assert.equal(document.documentElement.getAttribute(`data-algohub-sync-${platform}`), '1.9.0')
+    assert.equal(document.body.children.length, 0)
+  }
+  const panel = document.createElement('div')
+  let requests = 0, latest = '1.10.0'
+  const { context, advance } = harness({ document, panel, GM_info, platform, GM_xmlhttpRequest(request) {
+    requests++
+    assert.equal(request.anonymous, true)
+    request.onload({ status: 200, response: { [platform]: latest } })
+  } })
+  context.checkScriptUpdate()
+  assert.match(panel.textContent, /需要更新至 v1\.10\.0/)
+  assert.ok(panel.firstChild.href.endsWith(`algohub-${platform}-sync.user.js`))
+  panel.replaceChildren()
+  context.checkScriptUpdate()
+  assert.equal(requests, 1)
+  assert.ok(panel.firstChild)
+  advance(7 * 3_600_000)
+  panel.replaceChildren()
+  latest = '1.9.0'
+  context.checkScriptUpdate()
+  assert.equal(panel.children.length, 0)
 }
 
 // Out-of-order requests must preserve output order and never exceed two workers.

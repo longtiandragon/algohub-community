@@ -7,6 +7,7 @@ import type { PlatformAccount } from '@/api/types'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import InfoTip from '@/components/ui/InfoTip.vue'
 import PageHeader from '@/components/ui/PageHeader.vue'
+import SyncScriptInstall from '@/components/accounts/SyncScriptInstall.vue'
 import SectionCard from '@/components/ui/SectionCard.vue'
 
 /**
@@ -26,7 +27,6 @@ const expiresAt = ref<string | null>(null)
 const copied = ref(false)
 let generation = 0
 onBeforeUnmount(() => { generation++ })
-const scriptUrl = '/userscripts/algohub-leetcode-sync.user.js'
 const eligibleAccounts = computed(() => accounts.value.filter(account => account.platform === 'LEETCODE_CN' && account.ownershipStatus === 'VERIFIED'))
 const current = computed(() => eligibleAccounts.value.find((account) => account.id === selected.value) ?? null)
 const platformUrl = computed(() => current.value && platformProfileUrl(current.value))
@@ -142,14 +142,7 @@ const beijing = (value: string) => new Date(value).toLocaleString('zh-CN', { tim
     />
 
     <template v-else>
-      <SectionCard title="1. 安装同步脚本" description="先装浏览器扩展 Tampermonkey，再装 AlgoHub 的脚本；脚本只在力扣页面运行。">
-        <div class="flex flex-wrap items-center gap-3">
-          <el-button tag="a" :href="scriptUrl" target="_blank" rel="noopener noreferrer">
-            <span class="i-lucide-download mr-1.5" aria-hidden="true" />安装同步脚本
-          </el-button>
-          <span class="text-[12.5px] text-muted">v1.1.0 · 加速读取与上传续传</span>
-        </div>
-      </SectionCard>
+      <SyncScriptInstall platform="leetcode" />
 
       <SectionCard title="2. 生成连接码" description="选择要同步的力扣账号，生成一次性的连接码（60 分钟内有效）。">
         <div class="flex flex-col gap-4">
