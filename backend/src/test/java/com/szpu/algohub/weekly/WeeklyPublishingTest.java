@@ -1,6 +1,9 @@
 package com.szpu.algohub.weekly;
 
 import java.util.*;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,9 +36,13 @@ class WeeklyPublishingTest {
 
     private long school,foreign,manager,leader,student;
     private static final String URL="https://codeforces.com/contest/2278";
-    private static final String BODY="""
-        {"url":"https://codeforces.com/contest/2278","targets":{"2025":2,"2026":1},"weekStart":"2026-11-18"}
-        """;
+    private static final LocalDate MONDAY = LocalDate.now(ZoneId.of("Asia/Shanghai")).with(DayOfWeek.MONDAY);
+    private static String assignment(LocalDate day) {
+        return """
+        {"url":"https://codeforces.com/contest/2278","targets":{"2025":2,"2026":1},"weekStart":"%s"}
+        """.formatted(day);
+    }
+    private static final String BODY = assignment(MONDAY.plusDays(2));
     private final WeeklySource.Meta meta=new WeeklySource.Meta("CODEFORCES","2278","Round","Div.3",URL,List.of(
         new WeeklySource.Task("A","2278A"),new WeeklySource.Task("B","2278B")));
 
@@ -74,7 +81,7 @@ class WeeklyPublishingTest {
     @Test void bothRolesPublishAcrossGradesAndTemplatesStayWithinSchool() throws Exception {
         mvc.perform(post(endpoint(school)+"/defaults").with(as(leader)).contentType(MediaType.APPLICATION_JSON).content(BODY)).andExpect(status().isOk());
         long id=publish(leader,BODY);
-        mvc.perform(get("/api/weekly/home").param("weekStart","2026-11-16").param("school",String.valueOf(foreign)).with(as(student)))
+        mvc.perform(get("/api/weekly/home").param("weekStart",MONDAY.toString()).param("school",String.valueOf(foreign)).with(as(student)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.schools[0].id").value(school))
             .andExpect(jsonPath("$.data.contests[0].id").value(id))
@@ -82,16 +89,16 @@ class WeeklyPublishingTest {
             .andExpect(jsonPath("$.data.contests[0].students").doesNotExist());
         mvc.perform(get(endpoint(school)+"/preview").param("url",URL).with(as(manager)))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.targets['2025']").value(2));
-        publish(manager,BODY.replace("11-18","11-23"));
+        publish(manager,assignment(MONDAY.plusWeeks(1)));
         mvc.perform(get(endpoint(school)+"/preview").param("url",URL).with(as(leader)))
             .andExpect(jsonPath("$.data.history.length()").value(2))
-            .andExpect(jsonPath("$.data.history[0].weekStart").value("2026-11-23"))
-            .andExpect(jsonPath("$.data.history[1].weekStart").value("2026-11-16"))
+            .andExpect(jsonPath("$.data.history[0].weekStart").value(MONDAY.plusWeeks(1).toString()))
+            .andExpect(jsonPath("$.data.history[1].weekStart").value(MONDAY.toString()))
             .andExpect(jsonPath("$.data.history[1].status").value("PUBLISHED"));
         mvc.perform(post(endpoint(school)).with(as(manager)).contentType(MediaType.APPLICATION_JSON).content(BODY))
             .andExpect(status().isConflict());
         mvc.perform(get(endpoint(school)+"/"+id).with(as(student))).andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.weekStart").value("2026-11-16"));
+            .andExpect(jsonPath("$.data.weekStart").value(MONDAY.toString()));
         long outsider=member(foreign,2026);
         mvc.perform(get(endpoint(school)).with(as(outsider))).andExpect(status().isNotFound());
         mvc.perform(get(endpoint(foreign)+"/"+id).with(as(outsider))).andExpect(status().isNotFound());
